@@ -199,3 +199,16 @@ wandb/
 
 # local configs
 local.yaml
+
+# personal operation log (not tracked)
+documentation.md
+
+# paper pdf (not tracked)
+dejaview.pdf
+blockViT.pdf
+
+# probe experiment outputs (not tracked)
+out/
+
+# experiment scripts & tools (not tracked)
+
