@@ -65,6 +65,8 @@ def main():
     ap.add_argument("--sampling", default="uniform", choices=["first", "uniform"],
                     help="'first' = first n posed frames; 'uniform' = n evenly spaced across the sequence "
                          "(matches the repo eval's uniform view sampling; more diverse viewpoints)")
+    ap.add_argument("--stride", type=int, default=None,
+                    help="if set, take every <stride>-th posed frame (posed[::stride]); overrides --n/--sampling")
     ap.add_argument("--device", default="cuda")
     args = ap.parse_args()
 
@@ -92,15 +94,19 @@ def main():
     img_dir = dslr / "resized_images"
     posed = [n for n in sorted(p.name for p in img_dir.iterdir()
                                if p.suffix.lower() in (".jpg", ".jpeg", ".png")) if n in poses]
-    assert len(posed) >= args.n, f"only {len(posed)} posed frames available, need {args.n}"
-    if args.sampling == "uniform":
-        # same formula as the repo's EvalDataset uniform sampling; indices stay increasing so
-        # the selection is already in sorted (load_sequence) order.
-        idx = np.linspace(0, len(posed), args.n, endpoint=False, dtype=np.int32)
-        names = [posed[i] for i in idx]
+    if args.stride is not None:
+        names = posed[::args.stride]                 # every <stride>-th posed frame
+        args.n = len(names)
+        print(f"sampling=stride({args.stride})  {len(names)} of {len(posed)} posed frames: {names}")
     else:
-        names = posed[: args.n]
-    print(f"sampling={args.sampling}  frames: {names}")
+        assert len(posed) >= args.n, f"only {len(posed)} posed frames available, need {args.n}"
+        if args.sampling == "uniform":
+            # same formula as the repo's EvalDataset uniform sampling; indices stay increasing.
+            idx = np.linspace(0, len(posed), args.n, endpoint=False, dtype=np.int32)
+            names = [posed[i] for i in idx]
+        else:
+            names = posed[: args.n]
+        print(f"sampling={args.sampling}  frames: {names}")
 
     mesh = load_mesh(scene / "scans" / "mesh_aligned_0.05.ply", device)
     rasterizer = MeshRasterizer(

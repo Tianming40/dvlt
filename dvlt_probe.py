@@ -57,7 +57,9 @@ class Probe:
         self.renorm = renorm                # bool: enable per-step renorm of patch tokens
         self.renorm_target = renorm_target  # None => use |x| at step `renorm_from`; else fixed float
         self.renorm_from = renorm_from      # only renorm from this step index onward
-        self._renorm_frozen = None          # captured target norm on first renorm step
+        self._renorm_frozen = None          # captured target norm on first renorm step (scalar mode)
+        self.renorm_pertoken = False        # True => freeze EACH token's own norm (keeps per-token norm structure)
+        self._renorm_frozen_vec = None      # captured per-token norm vector on first renorm step
         self._install_gate_hooks()
 
 
@@ -101,8 +103,13 @@ class Probe:
             patch = x_new[:, pm:].float()
             cur = patch.norm(dim=-1, keepdim=True)               # (BS, Npatch, 1)
 
-            # decide target norm: capture once on first renorm step, or use fixed value
-            if self.renorm_target is not None:
+            # decide target norm: capture once on first renorm step, or use fixed value.
+            # NOTE: this keeps the NEW direction (patch/cur) and only overrides the magnitude.
+            if self.renorm_pertoken:
+                if self._renorm_frozen_vec is None:
+                    self._renorm_frozen_vec = cur.clone()        # per-token norm, frozen at renorm_from
+                target = self._renorm_frozen_vec
+            elif self.renorm_target is not None:
                 target = self.renorm_target
             else:
                 if self._renorm_frozen is None:
@@ -414,6 +421,38 @@ def _pred_f(P, x, rope, dims):
     return {k: (v.float() if torch.is_tensor(v) else v) for k, v in p.items()}
 
 
+def gtdepth_residual(pr, P, dims):
+    """ORACLE residual: scale-invariant L1 depth error vs GT, differentiable wrt pr['depth'].
+    Diagnostic only (uses GT) — isolates 'injection MECHANISM' from 'objective QUALITY':
+    if descending THIS improves AbsRel (while photometric worsened it), the mechanism is fine and
+    the photo failure was the (degenerate) objective. Median scale is DETACHED so the gradient
+    corrects shape, not the free scale gauge."""
+    B, S, H, W = dims
+    gt = P.gt_depth[:S].to(pr["depth"].device).float()
+    p = pr["depth"].float().reshape(gt.shape)
+    m = gt > 1e-6
+    if m.sum() < 10:
+        return p.sum() * 0.0, None
+    s = (gt[m].median() / p[m].median().clamp_min(1e-6)).detach()   # scale is a free gauge -> detach
+    L = (p * s - gt).abs()[m].mean()
+    return L, None
+
+
+def gtcam_residual(pr, P, dims):
+    """ORACLE camera residual: scale-aligned camera-CENTRE error vs GT poses, differentiable wrt rays
+    (=> state). Removes the global translation + scale gauge (detached) so the gradient corrects the
+    camera-centre SHAPE, not the free Sim3 gauge. Complements gtdepth_residual (which ignores camera)."""
+    B, S, H, W = dims
+    if getattr(P, "gt_c2w", None) is None:
+        return pr["rays"].sum() * 0.0, None
+    o = pr["rays"][0, :, :, :, 3:6].reshape(S, -1, 3).float().mean(1)   # (S,3) predicted camera centres
+    gt = P.gt_c2w[:S, :3, 3].to(o.device).float()                      # (S,3) GT camera centres
+    oc = o - o.mean(0, keepdim=True); gc = gt - gt.mean(0, keepdim=True)   # remove global translation
+    s = (gc.norm() / oc.norm().clamp_min(1e-6)).detach()                # remove global scale (detached)
+    L = (oc * s - gc).norm(dim=-1).mean()
+    return L, None
+
+
 def cmd_photo(P, a):
     images = P.load(a.input)
     K = a.K
@@ -429,15 +468,23 @@ def cmd_photo(P, a):
         conv = detect_convention(_pred_f(P, xs[-1], rope, dims), dims)
     print(f"camera pose_enc convention detected: {conv}")
 
-    # (A) monitor only: does the photometric residual track distance-to-endpoint along the trajectory?
-    print("\n[A] monitor: photo residual along the standard loop")
+    # choose the residual being injected: 'photo' (self-supervised, degenerate) or 'gtdepth' (oracle diagnostic)
+    restype = getattr(a, "residual", "photo")
+    def resfn(pr):
+        if restype == "gtdepth":
+            return gtdepth_residual(pr, P, dims)
+        return photometric_residual(pr, images, dims, conv, stride=a.stride)
+    print(f"residual type: {restype}")
+    # 
+    # (A) monitor only: does the residual track distance-to-endpoint along the trajectory?
+    print("\n[A] monitor: residual along the standard loop")
     with torch.no_grad():
         monitor = []
         for i, xi in enumerate(xs):
             if i == 0:
                 continue
             pr = _pred_f(P, xi, rope, dims)
-            L, _ = photometric_residual(pr, images, dims, conv, stride=a.stride)
+            L, _ = resfn(pr)
             d = out_dist({k: v.cpu() for k, v in pr.items() if k in ("depth", "rays")}, ref_pred)["depth"]
             gm = gt_metrics(P, {k: v for k, v in pr.items() if k in ("depth", "rays")})
             monitor.append((i, L.item(), d, gm))
@@ -456,7 +503,7 @@ def cmd_photo(P, a):
                 xcur.requires_grad_(True)
                 with torch.enable_grad(), P.acc.autocast():
                     pr = _pred_f(P, xcur, rope, dims)
-                    L, _ = photometric_residual(pr, images, dims, conv, stride=a.stride)
+                    L, _ = resfn(pr)
                     g, = torch.autograd.grad(L, xcur)
                 with torch.no_grad():
                     gn = g.float().norm().clamp_min(1e-12)
@@ -470,7 +517,7 @@ def cmd_photo(P, a):
                     xcur = P.step(xcur, i, K, rope, B, S)
         with torch.no_grad():
             pr = _pred_f(P, xcur, rope, dims)
-            L, _ = photometric_residual(pr, images, dims, conv, stride=a.stride)
+            L, _ = resfn(pr)
             d = out_dist({k: v.cpu() for k, v in pr.items() if k in ("depth", "rays")}, ref_pred)
             tn = patch_part(xcur, P.m).float().norm(dim=-1).mean().item()
         gm = gt_metrics(P, {k: v for k, v in pr.items() if k in ("depth", "rays")})
@@ -480,7 +527,8 @@ def cmd_photo(P, a):
           "\n         L_photo down but geometry drifting / |x| inflating => the network lets you fit photometry in a degenerate way"
           "\n         (norm gauge or view-dependent appearance) -> need norm control / robust kernel / pose-consistent residual.")
     os.makedirs(a.out, exist_ok=True)
-    json.dump(dict(monitor=monitor, injection=rows, convention=conv), open(f"{a.out}/photo.json", "w"), indent=1)
+    json.dump(dict(residual=restype, monitor=monitor, injection=rows, convention=conv),
+              open(f"{a.out}/photo_{restype}.json", "w"), indent=1)
 
 
 # ----------------------------------------------------------------------------- exp 5: K sweep vs ground truth, every step
@@ -740,6 +788,374 @@ def cmd_sched(P, a):
     print("\nReading: reverse/shuffle collapsing => t carries real 'stage' info (not an ignorable bias)."
           "\n         frozen t: |x| and AbsRel settling => fixed-point iteration; drifting => time-dependent flow."
           "\n         half still accurate at its end => model learned a direction field to the endpoint, not a fixed timetable.")
+
+
+# ----------------------------------------------------------------------------- shared dynamics row (norm/clustering/GT)
+def _dyn_sub(P, x, S):
+    """FIXED patch-token subsample (seed 0) for clustering metrics, matching the grand setup."""
+    pidx = _patch_global_idx(P, S, x.shape[1]).to(x.device)
+    g = torch.Generator(device="cpu").manual_seed(0)
+    return pidx[torch.randperm(pidx.numel(), generator=g)[:min(1024, pidx.numel())]].sort().values.to(x.device)
+
+
+def _dyn_row(P, x, rope, dims, sub, step, t_now, t_next, decode=True):
+    """Per-step snapshot: token norm + clustering (k_eff, cluster_cos) + GT depth error (if decoded)."""
+    B, S, H, W = dims
+    xp = patch_part(x, P.m).float()
+    r = dict(step=step, t_now=round(float(t_now), 4), t_next=round(float(t_next), 4),
+             tok_norm=xp.norm(dim=-1).mean().item(), norm_std=xp.norm(dim=-1).std().item())
+    with torch.autocast(device_type=x.device.type, enabled=False):   # keep Gram in fp32 (cluster_stats -> numpy)
+        flat = x.reshape(x.shape[0] * x.shape[1], x.shape[-1]).float()
+        z = F.normalize(flat[sub], dim=-1)
+        r["k_eff"], _ = cluster_stats(z, [0.9])                  # Gram participation ratio (low = clustered)
+        zc = _unit(flat[sub]); npair = zc.shape[0] * (zc.shape[0] - 1) / 2
+        r["cluster_cos"] = ((zc @ zc.t()).triu(1).sum() / max(npair, 1)).item()
+    if decode and P.gt_depth is not None:
+        pr = {k: v.float() for k, v in P.decode(x, rope, dims).items() if k in ("depth", "rays")}
+        r.update(depth_vs_gt(pr["depth"], P.gt_depth[:S]))
+    return r
+
+
+def _dyn_plot(out, name, runs, boundaries=None):
+    try:
+        import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+        keys = [("absrel", "depth AbsRel vs GT", True), ("tok_norm", "patch-token norm |x|", False),
+                ("k_eff", "k_eff (low = clustered)", False)]
+        fig, ax = plt.subplots(1, 3, figsize=(16, 4))
+        for c, (k, title, logy) in enumerate(keys):
+            for rn, rows in runs.items():
+                xs = [r["step"] for r in rows if k in r]; ys = [r[k] for r in rows if k in r]
+                if xs: ax[c].plot(xs, ys, marker="o", ms=3, label=rn)
+            if logy: ax[c].set_yscale("log")
+            if boundaries:
+                for b in boundaries: ax[c].axvline(b, color="k", ls=":", lw=0.8, alpha=0.5)
+            ax[c].set_title(title); ax[c].set_xlabel("step"); ax[c].grid(alpha=.3); ax[c].legend(fontsize=7)
+        fig.suptitle(name); fig.tight_layout(); fig.savefig(f"{out}/{name}.png", dpi=130)
+        print(f"saved {out}/{name}.png")
+    except Exception as e:
+        print("plot skipped:", e)
+
+
+# ----------------------------------------------------------------------------- exp 16: re-feed (is the K>Kmax collapse reversible?)
+@torch.no_grad()
+def cmd_refeed(P, a):
+    """Idea 1 (Stage-1). Run base_K linspace steps, then RE-FEED a refeed_K linspace block refeed_n
+    times (continuous state, pure schedule re-feed, NO norm intervention). Does re-feeding the
+    early-t 'coarse refine' gates pull a collapsed state back (recoverable excursion), or is the
+    K>Kmax collapse a permanent attractor? Records |x| / k_eff / AbsRel per step."""
+    images = P.load(a.input); B, S, _, H, W = images.shape
+    x, rope, dims = P.init_state(images); sub = _dyn_sub(P, x, S)
+
+    def lin(K):
+        ts = torch.linspace(0.0, 1.0, K).tolist()
+        return [(ts[i], ts[i + 1] if i + 1 < K else 1.0) for i in range(K)]
+
+    fwd = lin(a.base_K)
+    if a.refeed_mode == "reverse":
+        # replay the SAME base_K (t_now,t_next) pairs in REVERSE order (t marches 1 -> 0) on the
+        # continuous (collapsed) state. NOT a dynamical time-reversal (t is only a gate signal, no dt
+        # integration): a descending-t gate schedule applied to the collapsed state. Pairs stay forward
+        # (t_now<t_next), only their order flips, so every pair is in-distribution.
+        sched = fwd + fwd[::-1]
+        bounds = [a.base_K, 2 * a.base_K]
+        print(f"[refeed:reverse] base_K={a.base_K} forward then SAME {a.base_K} pairs reversed (t:1->0)"
+              f"  ->  {len(sched)} steps; boundary at {bounds[1:]}")
+    else:
+        sched = fwd + lin(a.refeed_K) * a.refeed_n
+        bounds = [a.base_K + a.refeed_K * j for j in range(a.refeed_n + 1)]   # re-feed boundaries
+        print(f"[refeed:restart] base_K={a.base_K} then {a.refeed_n}x refeed_K={a.refeed_K}  ->  {len(sched)} steps; boundaries at {bounds}")
+    rows = [_dyn_row(P, x, rope, dims, sub, 0, 0.0, 0.0)]
+    for i, (tn, tx) in enumerate(sched):
+        x = P.step_t(x, tn, tx, rope, B, S)
+        if (i + 1) % a.every == 0 or i == len(sched) - 1 or (i + 1) in bounds:
+            r = _dyn_row(P, x, rope, dims, sub, i + 1, tn, tx); rows.append(r)
+            mark = ("  <<reverse-start" if a.refeed_mode == "reverse" else "  <<re-feed") if (i + 1) in bounds[1:] else ""
+            print(f"  step {i+1:>3}/{len(sched):<3} t=({tn:.3f},{tx:.3f}) |x|={r['tok_norm']:7.1f} "
+                  f"k_eff={r['k_eff']:5.2f} absrel={r.get('absrel', float('nan')):.4f}{mark}")
+    os.makedirs(a.out, exist_ok=True)
+    stem = "refeed_reverse" if a.refeed_mode == "reverse" else "refeed"
+    json.dump(dict(mode=a.refeed_mode, base_K=a.base_K, refeed_K=a.refeed_K, refeed_n=a.refeed_n,
+                   boundaries=bounds, rows=rows), open(f"{a.out}/{stem}.json", "w"), indent=1)
+    _dyn_plot(a.out, stem, {stem: rows}, boundaries=bounds)
+    if a.refeed_mode == "reverse":
+        print("\nReading: after step base_K the clock marches t:1->0 on the collapsed state. If AbsRel/k_eff "
+              "recover as t descends => a descending-t (fine->coarse) gate schedule un-collapses it; if they "
+              "keep degrading/exploding => reverse-order gating does not help (and OOD-ness of late-first gating).")
+    else:
+        print("\nReading: if AbsRel/k_eff DROP back after a re-feed boundary => collapse is RECOVERABLE "
+              "(the schedule/clock is the problem, not the state). If they stay bad => permanent attractor.")
+
+
+# ----------------------------------------------------------------------------- exp 17: renorm-from sweep (when can a norm clamp save the collapse?)
+@torch.no_grad()
+def cmd_renormsweep(P, a):
+    """Idea 2 (Stage-1). Run K=rs_K (default 64); clamp the patch-token NORM per-token (direction
+    update KEPT, magnitude frozen at the renorm-from step) starting from each renorm_from in --rs-from,
+    plus a no-renorm baseline. Which start step recovers the collapse? Records |x|/k_eff/AbsRel."""
+    images = P.load(a.input); B, S, _, H, W = images.shape
+    x0, rope, dims = P.init_state(images); sub = _dyn_sub(P, x0, S)
+    K = a.rs_K
+    runs = {}
+    for rf in [None] + list(a.rs_from):
+        name = "no-renorm" if rf is None else f"from{rf}"
+        P.renorm = rf is not None; P.renorm_from = rf or 0
+        P.renorm_pertoken = True; P._renorm_frozen = None; P._renorm_frozen_vec = None
+        x, rope, dims = P.init_state(images)
+        rows = [_dyn_row(P, x, rope, dims, sub, 0, 0.0, 0.0)]
+        ts = torch.linspace(0.0, 1.0, K).tolist()
+        print(f"\n[{name}]  K={K}")
+        for i in range(K):
+            x = P.step(x, i, K, rope, B, S)
+            if (i + 1) % a.every == 0 or i == K - 1:
+                r = _dyn_row(P, x, rope, dims, sub, i + 1, ts[i], ts[i + 1] if i + 1 < K else 1.0); rows.append(r)
+                print(f"  step {i+1:>3}/{K} |x|={r['tok_norm']:7.1f} k_eff={r['k_eff']:5.2f} absrel={r.get('absrel', float('nan')):.4f}")
+        runs[name] = rows
+    P.renorm = False; P.renorm_pertoken = False
+    print("\n=== final AbsRel per renorm_from ===")
+    for name, rows in runs.items():
+        r = rows[-1]; print(f"  {name:<11} |x|={r['tok_norm']:7.1f} k_eff={r['k_eff']:5.2f} absrel={r.get('absrel', float('nan')):.4f}")
+    os.makedirs(a.out, exist_ok=True)
+    json.dump({"K": K, "runs": runs}, open(f"{a.out}/renormsweep.json", "w"), indent=1)
+    _dyn_plot(a.out, "renormsweep", runs)
+    print("\nReading: a renorm_from whose AbsRel stays ~baseline AND k_eff stays high = the clamp helped. "
+          "If AbsRel stays ~0.35 despite |x| being held flat => norm clamp alone can't fix it (collapse is directional).")
+
+
+# ----------------------------------------------------------------------------- exp 18: residual-injection RESCUE of a collapsing K (north-star test)
+def cmd_rescue(P, a):
+    """On a COLLAPSING K (default 64), inject the (oracle gtdepth) residual gradient into the STATE and
+    ask: can it PREVENT/REVERSE the collapse? NOT weight training — test-time latent guidance. Three runs:
+      baseline  : plain K-step loop (collapses).
+      interleave: after each loop step from --i-start, do --i-per gradient steps (continuous guidance).
+      burst     : at step --b-at, do --b-iters gradient steps once (rescue a collapsed state).
+    Records per step |x|, k_eff, AbsRel, and camera ATE (residual is depth-only -> does cam follow?)."""
+    images = P.load(a.input); B, S, _, H, W = images.shape
+    x0, rope, dims = P.init_state(images); sub = _dyn_sub(P, x0, S)
+    K = a.rescue_K; ts = torch.linspace(0.0, 1.0, K).tolist()
+
+    def row(x, k, tn, tx):
+        with torch.no_grad():
+            r = _dyn_row(P, x, rope, dims, sub, k, tn, tx)
+            gm = gt_metrics(P, {kk: vv for kk, vv in P.decode(x, rope, dims).items() if kk in ("depth", "rays")})
+            r["ate"] = (gm.get("ate_rel") if gm else None)   # gt_metrics returns 'ate_rel' (camera-centre ATE)
+        return r
+
+    def inject(xcur):
+        # gradient just to token ，not train ！！！！！！！！
+        xcur = xcur.detach().clone().requires_grad_(True)
+        with torch.enable_grad(), P.acc.autocast():
+            pr = _pred_f(P, xcur, rope, dims)
+            L, _ = gtdepth_residual(pr, P, dims)
+            # add some cam error
+            if a.cam_weight > 0:                       # optionally add the oracle camera residual
+                Lc, _ = gtcam_residual(pr, P, dims)
+                L = L + a.cam_weight * Lc
+            g, = torch.autograd.grad(L, xcur)
+        with torch.no_grad():
+            gn = g.float().norm().clamp_min(1e-12)
+            return (xcur.float() - a.rescue_eta * xcur.float().norm() * (g.float() / gn)).to(x0.dtype).detach()
+
+    def logrow(rows, x, step, tn, tx, pos, phase):
+        r = row(x, step, tn, tx); r["pos"] = round(pos, 3); r["phase"] = phase; rows.append(r); return r
+
+    runs = {}
+    for mode in ("baseline", "interleave", "burst"):
+        x = x0.detach().clone()
+        rows = []
+        logrow(rows, x, 0, 0.0, 0.0, 0.0, "init")
+        print(f"\n[{mode}]  K={K}" + (f"  (i_start={a.i_start}, i_per={a.i_per}, eta={a.rescue_eta})" if mode == "interleave"
+              else f"  (b_at={a.b_at}, b_iters={a.b_iters}, eta={a.rescue_eta})" if mode == "burst" else ""))
+        for i in range(K):
+            tn, tx = ts[i], ts[i + 1] if i + 1 < K else 1.0
+            with torch.no_grad():
+                x = P.step(x, i, K, rope, B, S)
+            rs = logrow(rows, x, i + 1, tn, tx, i + 1, "step")            # decode AFTER the loop step (before inject)
+            n_inj = (a.i_per if (mode == "interleave" and (i + 1) >= a.i_start)
+                     else a.b_iters if (mode == "burst" and (i + 1) == a.b_at) else 0)
+            ri = rs
+            for j in range(n_inj):
+                x = inject(x)
+                ri = logrow(rows, x, i + 1, tn, tx, i + 1 + (j + 1) / (n_inj + 1), f"inj{j+1}")  # decode AFTER each inject
+            if (i + 1) % a.every == 0 or i == K - 1:
+                def _f(v): return float("nan") if v is None else v
+                tag = (f" -> inj |x|={ri['tok_norm']:7.1f} k_eff={ri['k_eff']:5.2f} "
+                       f"absrel={_f(ri.get('absrel')):.4f} ate={_f(ri.get('ate')):.4f}") if n_inj else ""
+                print(f"  step {i+1:>3} (post-step) |x|={rs['tok_norm']:7.1f} k_eff={rs['k_eff']:5.2f} "
+                      f"absrel={_f(rs.get('absrel')):.4f} ate={_f(rs.get('ate')):.4f}{tag}")
+        runs[mode] = rows
+
+    os.makedirs(a.out, exist_ok=True)
+    json.dump({"K": K, "eta": a.rescue_eta, "runs": runs}, open(f"{a.out}/rescue.json", "w"), indent=1)
+    try:
+        import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+        keys = [("absrel", "depth AbsRel vs GT", True), ("tok_norm", "patch-token norm |x|", True),
+                ("k_eff", "k_eff (low=clustered)", False), ("ate", "camera ATE", True)]
+        col = {"baseline": "#d62728", "interleave": "#1f77b4", "burst": "#2ca02c"}
+        fig, ax = plt.subplots(1, 4, figsize=(20, 4.3))
+        for c, (k, title, logy) in enumerate(keys):
+            for nm, rows in runs.items():
+                xs = [r.get("pos", r["step"]) for r in rows if r.get(k) is not None]
+                ys = [r[k] for r in rows if r.get(k) is not None]
+                if xs:
+                    ax[c].plot(xs, ys, "-o", ms=2.0, lw=0.9, color=col[nm], label=nm)
+            if logy:
+                ax[c].set_yscale("log")
+            if a.i_start:
+                ax[c].axvline(a.i_start, color="#1f77b4", ls=":", lw=.7)
+            if a.b_at:
+                ax[c].axvline(a.b_at, color="#2ca02c", ls=":", lw=.7)
+            ax[c].set_title(title); ax[c].set_xlabel("step"); ax[c].grid(alpha=.3); ax[c].legend(fontsize=8)
+        fig.suptitle(f"Residual-injection RESCUE on K{K} (oracle gtdepth) — can injection stop the collapse?")
+        fig.tight_layout(); fig.savefig(f"{a.out}/rescue.png", dpi=120)
+        print(f"\nsaved {a.out}/rescue.png")
+    except Exception as e:
+        print("plot skipped:", e)
+    print("Reading: interleave/burst keeping |x| bounded + k_eff high + AbsRel low (vs baseline collapse) "
+          "=> residual injection can PREVENT/REVERSE collapse. ate following absrel => depth-only correction also fixes camera.")
+
+
+# ----------------------------------------------------------------------------- exp 19: correspondence-gated attention (add REPULSION from z_0 affinity)
+@torch.no_grad()
+def cmd_repel(P, a):
+    """Add the missing RELATIONAL REPULSION at the root: bias the GLOBAL-attention logits with gamma*S,
+    where S = cosine affinity of the (un-collapsed) ENCODER features z_0. z_0 encodes the TRUE relatedness
+    (same appearance -> likely same 3D point) BEFORE the loop collapses it; re-anchoring attention to S every
+    step keeps the structure from being erased. Question: does this hold k_eff UP (vs baseline collapse)?
+    Pure forward (no gradient) — just a modified attention. Records |x|/k_eff/AbsRel for baseline vs repel."""
+    import torch.nn.functional as F
+    images = P.load(a.input); B, S, _, H, W = images.shape
+    x0, rope, dims = P.init_state(images); sub = _dyn_sub(P, x0, S)
+    K = a.rescue_K; ts = torch.linspace(0.0, 1.0, K).tolist()
+    gattn = P.m.recurrent_blocks[0].global_attn.attn           # the GLOBAL Attention module
+
+    # S from z_0 over the global sequence (B, S*P, C); cosine affinity, fixed for all steps.
+    # NOTE: softmax is shift-invariant per row, so S's large DC component (off-diag mean ~0.87)
+    # cancels automatically; only the VARIATION (std ~0.11) acts, so gamma must be large (~20-50)
+    # for the bias to compete with the O(8) base logits.
+    Btot, Pt, C = x0.shape                                     # x0 is (B*S, P, C)
+    z0g = F.normalize(x0.reshape(B, S * Pt, C)[0].float(), dim=-1)   # (SP, C)
+    Smat = (z0g @ z0g.t())
+    off = Smat[~torch.eye(Smat.shape[0], dtype=torch.bool, device=Smat.device)]
+    print(f"z_0 affinity S: shape {tuple(Smat.shape)}  off-diag mean={off.mean():.3f} std={off.std():.3f}  gammas={a.repel_gamma}")
+
+    orig = gattn.forward
+
+    # --- mode "bias": additive logit bias gamma*S (stays on the softmax simplex -> attract-only; FALSIFIED 2026-11-05)
+    def make_biased(bias):
+        def biased(x, pos=None, block_mask=None):
+            Bb, N, Cc = x.shape
+            qkv = gattn.qkv(x).reshape(Bb, N, 3, gattn.num_heads, gattn.head_dim).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv.unbind(0)
+            q, k = gattn.q_norm(q), gattn.k_norm(k)            # no RoPE for global
+            out = F.scaled_dot_product_attention(q, k, v, attn_mask=bias)   # bias broadcast over B,heads
+            return gattn.proj(out.transpose(1, 2).reshape(Bb, N, Cc))
+        return biased
+
+    # --- mode "sub": SUBTRACTIVE repulsion. O_i = (A@V)_i - beta*(R@V)_i, R=softmax(-gamma*S).
+    # Net coefficients A - beta*R can go NEGATIVE -> output leaves conv(V) -> genuine repulsion
+    # (pushes token i AWAY from the mean of its z_0-DISSIMILAR tokens). Materializes the NxN matrix
+    # (manual attention, no flash), so run few frames. R is fixed from z_0 (shared across B & heads).
+    def make_repel_sub(beta, gamma):
+        R = torch.softmax(-gamma * Smat, dim=-1).to(x0.dtype)          # (N,N) attend-AWAY-from-related
+        def repel_sub(x, pos=None, block_mask=None):
+            Bb, N, Cc = x.shape
+            qkv = gattn.qkv(x).reshape(Bb, N, 3, gattn.num_heads, gattn.head_dim).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv.unbind(0)
+            q, k = gattn.q_norm(q), gattn.k_norm(k)
+            A = ((q * gattn.scale) @ k.transpose(-1, -2)).softmax(dim=-1)   # (B,heads,N,N) real attention
+            o_attn = A @ v
+            o_rep = R @ v                                                   # (B,heads,N,hd); R broadcast
+            out = o_attn - beta * o_rep                                     # net coeffs A-beta*R can be <0
+            return gattn.proj(out.transpose(1, 2).reshape(Bb, N, Cc))
+        return repel_sub
+
+    # --- mode "center": high-pass / anti-oversmoothing. O_i = (A@V)_i - beta*mean_j(V_j).
+    # Subtract the global mean every head (the thing all tokens collapse TOWARD). Per-token
+    # repulsion direction is (O_attn,i - mean), i.e. distinct per token, targeting the bulk.
+    def make_center(beta):
+        def center(x, pos=None, block_mask=None):
+            Bb, N, Cc = x.shape
+            qkv = gattn.qkv(x).reshape(Bb, N, 3, gattn.num_heads, gattn.head_dim).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv.unbind(0)
+            q, k = gattn.q_norm(q), gattn.k_norm(k)
+            A = ((q * gattn.scale) @ k.transpose(-1, -2)).softmax(dim=-1)
+            out = A @ v - beta * v.mean(dim=2, keepdim=True)          # subtract per-head token mean
+            return gattn.proj(out.transpose(1, 2).reshape(Bb, N, Cc))
+        return center
+
+    # --- mode "corr"/"corrhead": per-token correspondence-GATED repulsion. Undo the part of the
+    # attention average that flows to tokens j UNRELATED to i (below the row-mean affinity of a
+    # reference matrix 'ref') but i is currently attending to: W_ij ~ A_ij * relu(rowmean(ref)-ref_ij),
+    # row-normalized. O_i = (A@V)_i - beta*(W@V)_i. ref = cos(z0) for "corr"; the first-step attention
+    # CORRESPONDENCE HEAD for "corrhead" (a SHARPER who-corresponds signal: AUC 0.91 vs z0's 0.85).
+    def make_corr_ref(beta, ref):
+        Sdef = (ref.mean(dim=-1, keepdim=True) - ref).clamp_min(0.0).to(x0.dtype)   # (N,N) below-avg-affinity mask
+        def corr(x, pos=None, block_mask=None):
+            Bb, N, Cc = x.shape
+            qkv = gattn.qkv(x).reshape(Bb, N, 3, gattn.num_heads, gattn.head_dim).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv.unbind(0)
+            q, k = gattn.q_norm(q), gattn.k_norm(k)
+            A = ((q * gattn.scale) @ k.transpose(-1, -2)).softmax(dim=-1)
+            W = A * Sdef[None, None]                                  # keep only ref-unrelated neighbours i attends to
+            W = W / W.sum(dim=-1, keepdim=True).clamp_min(1e-6)       # row-normalize -> weighted mean of the "bad" neighbours
+            out = A @ v - beta * (W @ v)
+            return gattn.proj(out.transpose(1, 2).reshape(Bb, N, Cc))
+        return corr
+
+    # capture the first-step attention CORRESPONDENCE HEAD(s) once, as a fixed (N,N) reference (mode=corrhead).
+    # Space-cheap: we keep only the selected heads' head-mean, not all 12 heads.
+    def capture_corrhead(heads):
+        box = {}; of = gattn.forward
+        def grab(x, pos=None, block_mask=None):
+            Bb, N, Cc = x.shape
+            qkv = gattn.qkv(x).reshape(Bb, N, 3, gattn.num_heads, gattn.head_dim).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv.unbind(0); q, k = gattn.q_norm(q), gattn.k_norm(k)
+            A = ((q * gattn.scale) @ k.transpose(-1, -2)).softmax(dim=-1)   # (B,heads,N,N)
+            box["S"] = A[0, heads].mean(0).float()                         # (N,N) selected-head mean
+            gattn.forward = of                                             # first call only
+            return gattn.proj((A @ v).transpose(1, 2).reshape(Bb, N, Cc))
+        gattn.forward = grab
+        _ = P.step(x0.clone(), 0, K, rope, B, S)
+        gattn.forward = of
+        return box["S"]
+
+    gammas = a.repel_gamma if isinstance(a.repel_gamma, (list, tuple)) else [a.repel_gamma]
+    betas = a.repel_beta if isinstance(a.repel_beta, (list, tuple)) else [a.repel_beta]
+    runs = {}
+    if a.repel_mode == "bias":
+        plan = [("baseline", orig)] + [(f"bias_g{g:g}", make_biased((g * Smat).to(x0.dtype)[None, None])) for g in gammas]
+    elif a.repel_mode == "sub":
+        g0 = gammas[0]
+        plan = [("baseline", orig)] + [(f"sub_b{b:g}_g{g0:g}", make_repel_sub(b, g0)) for b in betas]
+    elif a.repel_mode == "center":
+        plan = [("baseline", orig)] + [(f"center_b{b:g}", make_center(b)) for b in betas]
+    elif a.repel_mode == "corr":
+        plan = [("baseline", orig)] + [(f"corr_b{b:g}", make_corr_ref(b, Smat)) for b in betas]
+    else:  # corrhead: gate by the first-step attention correspondence head(s)
+        heads = [int(h) for h in a.repel_head]
+        Scorr = capture_corrhead(heads)
+        print(f"corrhead reference = first-step global-attn head(s) {heads}  (shape {tuple(Scorr.shape)})")
+        tag = "+".join(str(h) for h in heads)
+        plan = [("baseline", orig)] + [(f"corrhead_h{tag}_b{b:g}", make_corr_ref(b, Scorr)) for b in betas]
+    for mode, fwd in plan:
+        gattn.forward = fwd
+        x = x0.detach().clone(); rows = [_dyn_row(P, x, rope, dims, sub, 0, 0.0, 0.0)]
+        print(f"\n[{mode}] K={K}")
+        for i in range(K):
+            x = P.step(x, i, K, rope, B, S)
+            r = _dyn_row(P, x, rope, dims, sub, i + 1, ts[i], ts[i + 1] if i + 1 < K else 1.0); rows.append(r)
+            if (i + 1) % a.every == 0 or i == K - 1:
+                print(f"  step {i+1:>3} |x|={r['tok_norm']:7.1f} k_eff={r['k_eff']:5.2f} absrel={r.get('absrel', float('nan')):.4f}")
+        runs[mode] = rows
+    gattn.forward = orig
+
+    os.makedirs(a.out, exist_ok=True)
+    stem = f"repel_{a.repel_mode}"
+    json.dump({"K": K, "mode": a.repel_mode, "gammas": gammas, "betas": betas, "runs": runs},
+              open(f"{a.out}/{stem}.json", "w"), indent=1)
+    _dyn_plot(a.out, stem, runs)
+    print(f"\nReading [{a.repel_mode}]: a run keeping k_eff HIGH (vs baseline collapse) => it supplies the missing "
+          "relational signal. bias=reweight-only (stays in conv hull); sub=subtractive (negative net coeffs, leaves conv hull = true repulsion).")
 
 
 # ----------------------------------------------------------------------------- exp 7: global-attention ablation (where is cross-view info written?)
@@ -2237,7 +2653,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["traj", "ksweep", "perturb", "photo", "kgt", "sched", "ablate", "attn",
                                     "flowdump", "channels", "smoothx", "smoothinput", "sweep", "unified",
-                                    "geshkovski", "grand"])
+                                    "geshkovski", "grand", "refeed", "renormsweep", "rescue", "repel"])
     ap.add_argument("--input", default="/storage/group/dataset_mirrors/01_incoming/scannetpp/data/00777c41d4/dslr/resized_images")
     ap.add_argument("--ckpt", default="nvidia/dvlt")
     ap.add_argument("--out", default="probe_out",
@@ -2254,7 +2670,21 @@ def main():
     ap.add_argument("--start", type=int, default=8)
     ap.add_argument("--eta", type=float, default=0.02)
     ap.add_argument("--iters", type=int, default=5)
+    ap.add_argument("--residual", choices=["photo", "gtdepth"], default="photo",
+                    help="photo: self-supervised photometric residual (degenerate); gtdepth: ORACLE GT-depth residual (diagnostic — isolates mechanism vs objective)")
     ap.add_argument("--stride", type=int, default=2)
+    # --- rescue (exp 18: can residual injection stop the collapse on a large K?) ---
+    ap.add_argument("--rescue-K", type=int, default=64, help="rescue: total loop steps (collapse regime)")
+    ap.add_argument("--rescue-eta", type=float, default=0.005, help="rescue: injection step size (small, from the photodiag sweep)")
+    ap.add_argument("--i-start", type=int, default=4, help="rescue interleave: begin per-step injection at this step")
+    ap.add_argument("--i-per", type=int, default=2, help="rescue interleave: gradient steps injected after each loop step")
+    ap.add_argument("--b-at", type=int, default=30, help="rescue burst: loop step to inject a one-shot burst")
+    ap.add_argument("--b-iters", type=int, default=15, help="rescue burst: gradient steps in the one-shot burst")
+    ap.add_argument("--cam-weight", type=float, default=0.0, help="rescue: weight on the ORACLE camera-centre residual added to the depth residual (0 = depth-only)")
+    ap.add_argument("--repel-gamma", type=float, nargs="+", default=[20.0, 50.0], help="repel: z_0 affinity strength. mode=bias: one or more logit-bias strengths gamma*S (S's DC cancels in softmax, only its std ~0.11 acts, so gamma ~20-50). mode=sub: FIRST value is the sharpness of R=softmax(-gamma*S) (how focused the attend-away target is).")
+    ap.add_argument("--repel-mode", choices=["bias", "sub", "center", "corr", "corrhead"], default="bias", help="repel: 'bias'=logit bias gamma*S (simplex, attract-only, FALSIFIED). 'sub'=O-beta*(R@V), R=softmax(-gamma*S) (shared-outlier shift, weak). 'center'=O-beta*mean(V) (high-pass / anti-oversmoothing). 'corr'=O-beta*(W@V), W~A*relu(rowmeanS-S) (per-token z_0-gated repulsion). 'corrhead'=same but ref = first-step attention CORRESPONDENCE HEAD (sharper who-corresponds signal, AUC 0.91 vs z0 0.85).")
+    ap.add_argument("--repel-head", type=int, nargs="+", default=[0, 9], help="repel mode=corrhead: which first-step global-attn head(s) to use as the correspondence reference (head-mean if several). 0 and 9 scored best (AUC ~0.9) in corr_check.")
+    ap.add_argument("--repel-beta", type=float, nargs="+", default=[0.1, 0.3], help="repel mode=sub: one or more strengths of the subtracted repulsion term beta*(R@V).")
     ap.add_argument("--gt", help="npz with depth (S,h,w) and optional c2w (S,4,4); enables GT columns in every command")
     ap.add_argument("--every", type=int, default=1, help="kgt/sched: decode every N steps (use 4 for K=64)")
     # --- sched (exp 6: time-schedule tricks) ---
@@ -2294,6 +2724,16 @@ def main():
     ap.add_argument("--renorm", action="store_true", help="photo[B]: renormalize patch tokens to a fixed norm")
     ap.add_argument("--renorm-target", type=float, default=None, help="photo[B]: target norm for renormalization")
     ap.add_argument("--renorm-from", type=int, default=0, help="photo[B]: step index from which to start renormalization")
+    # --- refeed (exp 16: is the K>Kmax collapse reversible?) ---
+    ap.add_argument("--base-K", type=int, default=64, help="refeed: initial linspace step count before re-feeding")
+    ap.add_argument("--refeed-K", type=int, default=16, help="refeed: step count of each re-fed linspace block")
+    ap.add_argument("--refeed-n", type=int, default=3, help="refeed: how many times to re-feed the block")
+    ap.add_argument("--refeed-mode", choices=["restart", "reverse"], default="restart",
+                    help="refeed: 'restart'=re-feed refeed_K linspace blocks from t=0 (default); "
+                         "'reverse'=after base_K forward, replay the SAME base_K pairs in reverse order (t: 1->0)")
+    # --- renormsweep (exp 17: when can a per-token norm clamp save the collapse?) ---
+    ap.add_argument("--rs-K", type=int, default=64, help="renormsweep: total linspace steps (collapse regime)")
+    ap.add_argument("--rs-from", type=int, nargs="+", default=[0, 16, 24, 32, 48], help="renormsweep: renorm_from start steps to sweep")
 
     a = ap.parse_args()
 
@@ -2323,7 +2763,9 @@ def main():
                  "ablate": cmd_ablate, "attn": cmd_attn, "flowdump": cmd_flowdump,
                  "channels": cmd_channels, "smoothx": cmd_smoothx, "smoothinput": cmd_smoothinput,
                  "sweep": cmd_sweep, "unified": cmd_unified,
-                 "geshkovski": cmd_geshkovski, "grand": cmd_grand}[a.cmd](P, a)
+                 "geshkovski": cmd_geshkovski, "grand": cmd_grand,
+                 "refeed": cmd_refeed, "renormsweep": cmd_renormsweep, "rescue": cmd_rescue,
+                 "repel": cmd_repel}[a.cmd](P, a)
         finally:
             sys.stdout = sys.__stdout__   # restore even if the command raises
 

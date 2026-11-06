@@ -204,11 +204,14 @@ local.yaml
 documentation.md
 
 # paper pdf (not tracked)
-dejaview.pdf
-blockViT.pdf
+*.pdf
+
 
 # probe experiment outputs (not tracked)
 out/
+
+*.sbatch
+*.sh
 
 # experiment scripts & tools (not tracked)
 
