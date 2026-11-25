@@ -5,8 +5,8 @@ Track per step: ||delta|| (how far from identity), cos(s_k, s_{k+1}) (step-to-st
 cos(delta_k, delta_0) (cumulative rotation). Reveals if the channel-selection pattern rotates.
 
   PYTHONPATH=$(pwd) python shovel/gate_dir_K.py \
-    --dirs out/track_s10_K8 out/track_s10_K16 out/track_s10_K32 out/track_s10_K64 out/track_s10_K128 \
-    --out out/track_s10_gatedir
+    --dirs out/stage1_2_collapse/track_s10_K8 out/stage1_2_collapse/track_s10_K16 out/stage1_2_collapse/track_s10_K32 out/stage1_2_collapse/track_s10_K64 out/stage1_2_collapse/track_s10_K128 \
+    --out out/stage1_2_collapse/track_s10_gatedir
 """
 import argparse, glob, os
 import numpy as np
@@ -38,7 +38,7 @@ def load_gates(d):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dirs", nargs="+", required=True)
-    ap.add_argument("--out", default="out/track_gatedir")
+    ap.add_argument("--out", default="out/stage1_2_collapse/track_gatedir")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 

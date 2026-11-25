@@ -4,8 +4,8 @@
 # Run from the repo root:  bash scriptandtool/run_probe20.sh
 set -e
 
-IN=out/gt_00777c41d4/probe_input
-GT=out/gt_00777c41d4/gt.npz
+IN=out/data/gt_00777c41d4/probe_input
+GT=out/data/gt_00777c41d4/gt.npz
 F=20
 
 echo "===== traj (per-step trajectory, several K) ====="
@@ -22,6 +22,6 @@ echo "===== photo (photometric residual + grad injection) ====="
 python dvlt_probe.py photo   --input $IN --gt $GT --max-frames $F --K 16 --start 8 --eta 0.02 --iters 5 --out probe20_photo
 
 echo "===== dashboard (one figure) ====="
-python scriptandtool/make_dashboard.py --out-root out --fig out/dashboard20.png
+python scriptandtool/make_dashboard.py --out-root out --fig out/stage1_2_collapse/dashboard20.png
 
-echo "done -> out/dashboard20.png"
+echo "done -> out/stage1_2_collapse/dashboard20.png"

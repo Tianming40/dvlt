@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """z0_similarity.py -- how similar are CORRESPONDING patches in z0 (encoder output, before any loop step / global attn)?
 
-z0 = out/tokendump/K16/step_000.npy (S, 5+Np, 768); only patch tokens are used.
+z0 = out/stage3_latent/tokendump/K16/step_000.npy (S, 5+Np, 768); only patch tokens are used.
 GT correspondences: patch centre of frame a, GT depth -> 3D (GT c2w, K) -> project into frame b -> patch of b;
 kept if inside b and not occluded (|z_proj / gt_depth_b - 1| < --occ).
 Reports (raw tokens, and per-frame-mean-removed tokens):
@@ -9,7 +9,7 @@ Reports (raw tokens, and per-frame-mean-removed tokens):
   retrieval: is the GT patch the most similar patch of frame b (top-1 / top-5 / within 1 patch), by frame gap.
 Figures: cosine histograms, retrieval vs gap, similarity heatmaps of 3 query patches in another frame.
 
-  PYTHONPATH=$(pwd) python shovel/z0_similarity.py --out out/z0sim
+  PYTHONPATH=$(pwd) python shovel/z0_similarity.py --out out/stage3_latent/z0sim
 """
 import argparse
 import os
@@ -26,11 +26,11 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump/K16")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump/K16")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-gap", type=int, default=6)
     ap.add_argument("--occ", type=float, default=0.05)
-    ap.add_argument("--out", default="out/z0sim")
+    ap.add_argument("--out", default="out/stage3_latent/z0sim")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     meta = np.load(f"{a.dump}/meta.npz")

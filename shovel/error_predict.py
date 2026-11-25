@@ -10,10 +10,10 @@ Part 2  predict the SIGNED per-patch log-depth error  e = logdepth_pred + log(sc
           R2 on the held-out frames, and AbsRel of the held-out frames before / after subtracting the predicted error.
         Also: share of the error variance that is a per-frame constant (cannot be learned per patch by construction is
         NOT excluded, it is just reported).
-States: K16 steps 4, 8, 16 and K64 step 32 (collapsed), from out/tokendump.
-Data: out/errpredict/errpredict.json, summary.txt, errpredict.png
+States: K16 steps 4, 8, 16 and K64 step 32 (collapsed), from out/stage3_latent/tokendump.
+Data: out/stage3_latent/errpredict/errpredict.json, summary.txt, errpredict.png
 
-  PYTHONPATH=$(pwd) python shovel/error_predict.py --out out/errpredict
+  PYTHONPATH=$(pwd) python shovel/error_predict.py --out out/stage3_latent/errpredict
 """
 import argparse
 import json
@@ -93,10 +93,10 @@ def mlp_fit(X, y, dev):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--states", nargs="+", default=["K16:4", "K16:8", "K16:16", "K64:32"])
-    ap.add_argument("--out", default="out/errpredict")
+    ap.add_argument("--out", default="out/stage3_latent/errpredict")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

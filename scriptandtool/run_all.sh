@@ -13,8 +13,8 @@
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 run() { echo "+ $*"; "$@" || echo "!!! step FAILED (continuing): $*"; }
 
-IN=out/gt_00777c41d4/probe_input
-GT=out/gt_00777c41d4/gt.npz
+IN=out/data/gt_00777c41d4/probe_input
+GT=out/data/gt_00777c41d4/gt.npz
 F=20          # ALWAYS 20 frames (standard) -- every command below
 PY="python dvlt_probe.py"
 

@@ -71,6 +71,13 @@ AbsRel / ray-dir deg / ATE, patch level.
 - Take-away: DVLT's remaining error on these scenes is below what our GT-free observations can resolve; beating it needs
   observations MORE precise than DVLT (e.g. sub-pixel matches from an external matcher, as in DeepBA arXiv 2611.18256).
 
+## Stationary loop (option A), 2026-11-19 → 11-23 — `train_stationary.py`
+Frozen DVLT, constant gates, restoring branch R beside the global MLP, optional linear pull to x0 / RMS. Best:
+`statA4_af_bptt8` (fixed α=0.05 + R, BPTT 8) — val AbsRel .0163 (K16) … .0178 (K128), OOD .0220 … .0224; Solv3R on the
+same clips .0168 … .0173 / .0215 … .0213; DVLT schedule K16 .0151 / .0205 (collapses at K64). Full table in
+experiment.md §3.9, figure `out/resopt/stationary_ksweep.png`, Solv3R eval `eval_solv3r.py` → `out/resopt/solv3r_eval/`,
+inspection of R `inspect_stationary.py`, all report figures `plot_report.py`.
+
 ## Known limitations of v0
 - patch-level geometry (27×36), not per pixel; origin is predicted per patch although it is constant per frame;
 - one shared time t for all frames (no per-frame progress yet → streaming comes later);

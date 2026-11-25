@@ -4,7 +4,7 @@ frequencies (geometry) and grows the DC (a component shared by all patches), and
 
 For every state, every frame and every channel, the 24x36 patch values form a small image -> 2D FFT -> power spectrum.
 Runs:
-  K16, K64           original DVLT schedule, stored states (out/tokendump)
+  K16, K64           original DVLT schedule, stored states (out/stage3_latent/tokendump)
   BR_base, BR_restart fixed gates B + RMS, K=128, without / with state restart z <- RMS((1-a) F(z) + a RMS(x0)), a=0.05
                      (run live; spectrum computed on the fly; full states kept only at --keep steps)
 Per state:
@@ -15,9 +15,9 @@ Per state:
   ch_dc[768], ch_energy[768] per-channel DC share of that channel's energy, and the channel's share of the total energy
   gdc                        share of the energy in the component shared by ALL patches of ALL frames (global mean)
   absrel                     decoded depth AbsRel (per-patch for stored runs, per-pixel for live runs)
-Data: out/tokenspectrum/spectrum.npz (+ summary.json/txt, figures, states_<run>_step<s>.npy).
+Data: out/stage3_latent/tokenspectrum/spectrum.npz (+ summary.json/txt, figures, states_<run>_step<s>.npy).
 
-  PYTHONPATH=$(pwd) python shovel/token_spectrum.py --out out/tokenspectrum
+  PYTHONPATH=$(pwd) python shovel/token_spectrum.py --out out/stage3_latent/tokenspectrum
 """
 import argparse
 import json
@@ -64,13 +64,13 @@ def spectrum_stats(z, gh, gw, edges, massive=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--K-br", type=int, default=128)
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--keep", type=int, nargs="+", default=[0, 8, 16, 32, 64, 128])
-    ap.add_argument("--out", default="out/tokenspectrum")
+    ap.add_argument("--out", default="out/stage3_latent/tokenspectrum")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     dev = "cuda"

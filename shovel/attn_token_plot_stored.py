@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """attn_token_plot_stored.py -- OFFLINE: plot the raw global-attention row of the 3 tracked frame-0 patches over ALL
-27*869 tokens (x = global token index, y = attention), from Stage-2 stored data (out/track_s10_K{K}/step_XX.npz).
+27*869 tokens (x = global token index, y = attention), from Stage-2 stored data (out/stage1_2_collapse/track_s10_K{K}/step_XX.npz).
 Each frame's span is shaded: own frame (blue), GT-visible (green), in view but OCCLUDED (orange), out of view (grey).
 GT target patch in visible frames marked with a red tick. Heads are averaged (default 0 and 9).
 
   one image : PYTHONPATH=$(pwd) python shovel/attn_token_plot_stored.py --K 16 --step 4
   video     : PYTHONPATH=$(pwd) python shovel/attn_token_plot_stored.py --K 16 64 --all-steps --video --fps 2
-              -> out/attnmatch_stored/token_video/K{K}/step_XXX.png + token_attn_K{K}_h0_9.mp4
+              -> out/stage1_2_collapse/attnmatch_stored/token_video/K{K}/step_XXX.png + token_attn_K{K}_h0_9.mp4
 In video mode the y-range of each patch row is FIXED over all steps of that K (max over steps), so heights compare.
 """
 import argparse
@@ -83,7 +83,7 @@ def render(R, G, K, step, t_now, heads, out_png, ylims=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--track-root", default="out")
     ap.add_argument("--tag", default="s10")
     ap.add_argument("--K", type=int, nargs="+", default=[16])
@@ -93,7 +93,7 @@ def main():
     ap.add_argument("--occ", type=float, default=0.1)
     ap.add_argument("--video", action="store_true")
     ap.add_argument("--fps", type=float, default=2.0)
-    ap.add_argument("--out", default="out/attnmatch_stored")
+    ap.add_argument("--out", default="out/stage1_2_collapse/attnmatch_stored")
     a = ap.parse_args()
     hs = "_".join(str(h) for h in a.heads)
 

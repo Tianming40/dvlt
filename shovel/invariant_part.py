@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """invariant_part.py -- does the collapse destroy the VIEW-INVARIANT ("which 3D point") part of the tokens?
 
-Stored states out/tokendump/K{16,64}/step_XXX.npy (state after s steps; s=0 is z0). Patch tokens only.
+Stored states out/stage3_latent/tokendump/K{16,64}/step_XXX.npy (state after s steps; s=0 is z0). Patch tokens only.
 Tracks (classes) from GT: anchor frames every --anchor-every frames, anchor patches on a stride-2 grid, projected with GT
 depth/pose/K into frames within +-max_gap (occlusion-checked) -> the patches of one 3D point in several views.
 Per state:
@@ -16,7 +16,7 @@ Per state:
   full-space references: retrieval with mean-removed full tokens, k_eff of full tokens, CKA of full-token track means
   accuracy   per-patch decoded log-depth (targets_XXX.npz) vs GT -> AbsRel (median scale)
 
-  PYTHONPATH=$(pwd) python shovel/invariant_part.py --out out/invariant
+  PYTHONPATH=$(pwd) python shovel/invariant_part.py --out out/stage3_latent/invariant
 """
 import argparse
 import json
@@ -34,14 +34,14 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--Ks", type=int, nargs="+", default=[16, 64])
     ap.add_argument("--anchor-every", type=int, default=3)
     ap.add_argument("--max-gap", type=int, default=4)
     ap.add_argument("--dim", type=int, default=64)
     ap.add_argument("--occ", type=float, default=0.05)
-    ap.add_argument("--out", default="out/invariant")
+    ap.add_argument("--out", default="out/stage3_latent/invariant")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     dev = "cuda" if torch.cuda.is_available() else "cpu"

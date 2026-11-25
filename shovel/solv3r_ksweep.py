@@ -10,8 +10,8 @@ Per call (call 0 = start state = encodings):
 Images / GT loaded exactly as in the DVLT experiments (Probe.load + load_gt), so numbers are directly comparable.
 
   PYTHONPATH=$(pwd):$(pwd)/third_party/solv3r python shovel/solv3r_ksweep.py \
-      --input out/gt_00777c41d4_s10/probe_input --gt out/gt_00777c41d4_s10/gt.npz --max-frames 27 \
-      --Ks 8 16 32 64 128 256 --out out/solv3rexperiment/ksweep
+      --input out/data/gt_00777c41d4_s10/probe_input --gt out/data/gt_00777c41d4_s10/gt.npz --max-frames 27 \
+      --Ks 8 16 32 64 128 256 --out out/solv3r/solv3rexperiment/ksweep
 Does NOT modify src/dvlt, dvlt_probe.py or third_party/solv3r.
 """
 import argparse
@@ -45,7 +45,7 @@ def main():
     ap.add_argument("--gt", required=True)
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--Ks", type=int, nargs="+", default=[8, 16, 32, 64, 128, 256])
-    ap.add_argument("--out", default="out/solv3rexperiment/ksweep")
+    ap.add_argument("--out", default="out/solv3r/solv3rexperiment/ksweep")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     from solv3r import Solv3R

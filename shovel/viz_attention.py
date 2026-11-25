@@ -3,15 +3,15 @@
 one PNG per head (+ a 13th 'mean' over heads), per step. Reads track_token's dump.
 
 Layout (option B, most detailed):
-  out/attn_viz_<tag>_K<K>/<token>/step_<kk>/frame_<jj>/head_<hh>.png
+  out/stage1_2_collapse/attn_viz_<tag>_K<K>/<token>/step_<kk>/frame_<jj>/head_<hh>.png
                                                         mean.png
 Each PNG = frame j's RGB image with that head's attention (global_rows[token,h,j,patches] -> 24x36,
 nearest-upsampled to the patch grid) blended on top (alpha ~ normalized attention). A red cross marks
 the GT correspondence in frame j (when visible); a cyan box marks the query patch itself in frame 0.
 Normalisation is per (token, head, step) across ALL frames, so brighter frame = more attended.
 
-  PYTHONPATH=$(pwd) python shovel/viz_attention.py --dir out/track_s10_K16 \
-      --input out/gt_00777c41d4_s10/probe_input --tokens near_tex,flat,far
+  PYTHONPATH=$(pwd) python shovel/viz_attention.py --dir out/stage1_2_collapse/track_s10_K16 \
+      --input out/data/gt_00777c41d4_s10/probe_input --tokens near_tex,flat,far
   # sample first:  --steps 1 --frames 0,2 --tokens near_tex
 """
 import argparse, glob, os
@@ -65,7 +65,7 @@ def main():
     tgt, val = m["gt_target"], m["gt_valid"]                   # (nP,S,2),(nP,S)
     tag = os.path.basename(a.dir.rstrip("/")).replace("track_", "")
     own = int(m["frame"]) if "frame" in m.files else 0           # the query's own frame (frame_attn target)
-    out = a.out or (f"out/attn_frameattn_{tag}" if a.attn == "frame" else f"out/attn_viz_{tag}")
+    out = a.out or (f"out/stage1_2_collapse/attn_frameattn_{tag}" if a.attn == "frame" else f"out/stage1_2_collapse/attn_viz_{tag}")
     def _stepnum(p):   # numeric step index from "step_123.npz" (lexicographic sort breaks at >=100)
         return int(os.path.basename(p).split("_")[1].split(".")[0])
     steps = sorted(glob.glob(f"{a.dir}/step_*.npz"), key=_stepnum)

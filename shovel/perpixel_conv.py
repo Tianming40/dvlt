@@ -3,8 +3,8 @@
 Where does the decoded depth converge, and where does its final error concentrate (edges vs flat)?
 Runs one or all frames into a folder + a cross-frame summary.
 
-  PYTHONPATH=$(pwd) python shovel/perpixel_conv.py --dir out/stepdecode_s10_K16 \
-      --gt out/gt_00777c41d4_s10/gt.npz --input out/gt_00777c41d4_s10/probe_input --frames all
+  PYTHONPATH=$(pwd) python shovel/perpixel_conv.py --dir out/stage1_2_collapse/stepdecode_s10_K16 \
+      --gt out/data/gt_00777c41d4_s10/gt.npz --input out/data/gt_00777c41d4_s10/probe_input --frames all
 """
 import argparse, glob, json, os
 import numpy as np
@@ -68,7 +68,7 @@ def main():
     ap.add_argument("--out-dir", default=None)
     a = ap.parse_args()
     tag = os.path.basename(a.dir.rstrip("/")).replace("stepdecode_", "")
-    outdir = a.out_dir or f"out/track_{tag}/perpixel"
+    outdir = a.out_dir or f"out/stage1_2_collapse/track_{tag}/perpixel"
     os.makedirs(outdir, exist_ok=True)
 
     gd_all = load_gt(a.gt, a.img_size, device="cpu")[0].numpy()   # (S,H,W)

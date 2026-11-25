@@ -11,10 +11,10 @@ The model expects *pinhole* images, so the probe must be fed the undistorted ima
 written here, NOT the raw fisheye resized_images.
 
 Usage:
-  python make_gt.py --scene-dir out/scene_00777c41d4 --n 6 --out out/gt_00777c41d4
+  python make_gt.py --scene-dir out/data/scene_00777c41d4 --n 6 --out out/data/gt_00777c41d4
   # then:
-  python dvlt_probe.py kgt --input out/gt_00777c41d4/undistorted_images \
-         --gt out/gt_00777c41d4/gt.npz --max-frames 6 --Ks 4 8 12 16 20 24 32 64
+  python dvlt_probe.py kgt --input out/data/gt_00777c41d4/undistorted_images \
+         --gt out/data/gt_00777c41d4/gt.npz --max-frames 6 --Ks 4 8 12 16 20 24 32 64
 
 Frame order matches load_sequence (sorted filenames), so the npz lines up with the
 images the probe loads.  Needs: <scene-dir>/dslr/{colmap/images.txt, resized_images,
@@ -59,7 +59,7 @@ def render_depth(rasterizer, mesh, pose_w2c, K, distortion, h, w, device) -> np.
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scene-dir", required=True, help="dir with dslr/ and scans/ (e.g. out/scene_00777c41d4)")
+    ap.add_argument("--scene-dir", required=True, help="dir with dslr/ and scans/ (e.g. out/data/scene_00777c41d4)")
     ap.add_argument("--n", type=int, default=6, help="number of frames (matches probe --max-frames)")
     ap.add_argument("--out", required=True, help="output dir for undistorted_images/ and gt.npz")
     ap.add_argument("--sampling", default="uniform", choices=["first", "uniform"],

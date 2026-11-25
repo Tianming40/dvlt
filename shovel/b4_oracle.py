@@ -18,7 +18,7 @@ vanishes when the residual vanishes).
 
 Runs (default): sched K16 base (reference), sched K64 base + euc (reproduce stage-2 rescue), BR K128 base,
                 BR K128 x {euc, man} x rho {1e-3, 3e-3, 1e-2}, BR K128 partial (best of the previous six).
-  PYTHONPATH=$(pwd) python shovel/b4_oracle.py --out out/b4oracle
+  PYTHONPATH=$(pwd) python shovel/b4_oracle.py --out out/stage3_latent/b4oracle
 """
 import argparse
 import json
@@ -39,8 +39,8 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--i-start", type=int, default=3)
     ap.add_argument("--w-cam", type=float, default=0.1)
@@ -48,7 +48,7 @@ def main():
     ap.add_argument("--K-br", type=int, default=128)
     ap.add_argument("--chunk", type=int, default=3)
     ap.add_argument("--only", nargs="*", default=None, help="run only these run names (debug)")
-    ap.add_argument("--out", default="out/b4oracle")
+    ap.add_argument("--out", default="out/stage3_latent/b4oracle")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

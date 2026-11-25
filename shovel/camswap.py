@@ -34,8 +34,8 @@ Metrics on frame A (all from DVLT's own decoded rays/depth; convention-free):
   persistence (B1/B2): cos(A's cam token, baseline A) and cos(A's cam token, baseline B) at the last step
   patchA_change: relative change of frame A's patch tokens at the last step vs baseline
 
-  PYTHONPATH=$(pwd) python shovel/camswap.py --input out/gt_00777c41d4_s10/probe_input --max-frames 27 \
-      --K 16 --swap-step 8 --variants A B1 B2 --swap cam camreg --pairs 5:5 4:5 12:13 3:20 8:24 6:0 --out out/camswap
+  PYTHONPATH=$(pwd) python shovel/camswap.py --input out/data/gt_00777c41d4_s10/probe_input --max-frames 27 \
+      --K 16 --swap-step 8 --variants A B1 B2 --swap cam camreg --pairs 5:5 4:5 12:13 3:20 8:24 6:0 --out out/stage3_latent/camswap
 """
 import argparse
 import json
@@ -148,7 +148,7 @@ def run_loop(P, x, rope, dims, K, start, record=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
     ap.add_argument("--ckpt", default="nvidia/dvlt")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=16)
@@ -156,7 +156,7 @@ def main():
     ap.add_argument("--variants", nargs="+", default=["A", "B1", "B2"])
     ap.add_argument("--swap", nargs="+", default=["cam", "camreg"])
     ap.add_argument("--pairs", nargs="+", default=["5:5", "4:5", "12:13", "3:20", "8:24", "6:0"])
-    ap.add_argument("--out", default="out/camswap")
+    ap.add_argument("--out", default="out/stage3_latent/camswap")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     pairs = [tuple(int(v) for v in p.split(":")) for p in a.pairs]

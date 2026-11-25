@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """camflow_stored.py -- OFFLINE (no model): does information flow cam -> patch or patch -> cam?
-Reads Stage-2 track dumps out/track_s10_K{K}/ (8 tracked frame-0 tokens: cam(REF variant), reg1-4, near_tex, flat, far).
+Reads Stage-2 track dumps out/stage1_2_collapse/track_s10_K{K}/ (8 tracked frame-0 tokens: cam(REF variant), reg1-4, near_tex, flat, far).
 
 (1) patch as query  : attention mass a patch gives to cam / registers
       frame attn (own frame 0, RoPE: specials sit at position (0,0))  and  global attn (frame-0 cam vs other frames' cams)
@@ -10,7 +10,7 @@ Reads Stage-2 track dumps out/track_s10_K{K}/ (8 tracked frame-0 tokens: cam(REF
       d_frame = |z_frame - z_in| / |z_in|,  d_global = |z_out - z_frame| / |z_frame|   (z_in = previous z_out; step 0: z0)
 Uniform-attention reference: frame 1/869 per key (cam 0.0012, 4 regs 0.0046); global 27 cams 0.0012, 108 regs 0.0046.
 
-  python shovel/camflow_stored.py --Ks 8 16 32 64 128 --out out/camflow_stored
+  python shovel/camflow_stored.py --Ks 8 16 32 64 128 --out out/stage3_latent/camflow_stored
 """
 import argparse
 import glob
@@ -77,7 +77,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--Ks", type=int, nargs="+", default=[8, 16, 32, 64, 128])
     ap.add_argument("--root", default="out")
-    ap.add_argument("--out", default="out/camflow_stored")
+    ap.add_argument("--out", default="out/stage3_latent/camflow_stored")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     log = []

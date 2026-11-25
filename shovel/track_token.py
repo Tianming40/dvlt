@@ -18,8 +18,8 @@ OWN qkv/q_norm/k_norm/rope (reused, not re-implemented) -> mathematically identi
 the tracked query rows are formed, so cost/memory stay tiny (~4.5 MB/step for 8 tokens).
 
   PYTHONPATH=$(pwd) python shovel/track_token.py \
-      --input out/gt_00777c41d4_s10/probe_input --gt out/gt_00777c41d4_s10/gt.npz \
-      --picks out/gt_00777c41d4_s10/patch_pick_frame0.json --max-frames 27 --K 16 --tag s10
+      --input out/data/gt_00777c41d4_s10/probe_input --gt out/data/gt_00777c41d4_s10/gt.npz \
+      --picks out/data/gt_00777c41d4_s10/patch_pick_frame0.json --max-frames 27 --K 16 --tag s10
 """
 import argparse, json, os
 import numpy as np

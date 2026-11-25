@@ -6,8 +6,8 @@ Builds GT world points with the repo's `depth_to_world_coords_points`, cameras w
   - `scene_to_plotly`  -> interactive .html  (whole scene + camera frustums)
   - `visualize_scene`  -> Rerun .rrd         (per-frame entities: toggle each frame in the tree)
 
-  PYTHONPATH=$(pwd) python shovel/gt_viz.py --gt out/gt_00777c41d4_s10/gt.npz \
-      --images out/gt_00777c41d4_s10/probe_input --frames all --mode both
+  PYTHONPATH=$(pwd) python shovel/gt_viz.py --gt out/data/gt_00777c41d4_s10/gt.npz \
+      --images out/data/gt_00777c41d4_s10/probe_input --frames all --mode both
 """
 import argparse, os
 import numpy as np, torch
@@ -18,8 +18,8 @@ from dvlt.viz.scene_plotly import scene_to_plotly
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
-    ap.add_argument("--images", default="out/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--images", default="out/data/gt_00777c41d4_s10/probe_input")
     ap.add_argument("--frames", default="all", help="'all' or comma list, e.g. 0,13,26")
     ap.add_argument("--out", default=None, help="output dir (default <gt_dir>/gt_viz)")
     ap.add_argument("--mode", default="both", choices=["plotly", "rerun", "both"])

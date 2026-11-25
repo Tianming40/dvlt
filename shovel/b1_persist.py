@@ -20,7 +20,7 @@ Metrics after n steps (standardized outputs, edited frames):
   leak_other= rms(dY_n on unedited frames)    / rms(dy on target)
   latent    = |z_edit,n - z_base,n| / |dz|  (edited frames)
 
-  PYTHONPATH=$(pwd) python shovel/b1_persist.py --steps 4 8 12 --frames 3 12 20 --out out/b1persist
+  PYTHONPATH=$(pwd) python shovel/b1_persist.py --steps 4 8 12 --frames 3 12 20 --out out/stage3_latent/b1persist
 """
 import argparse
 import json
@@ -53,7 +53,7 @@ def outs(dec, z, frames, sd, grad=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--K", type=int, default=16)
     ap.add_argument("--steps", type=int, nargs="+", default=[4, 8, 12])
     ap.add_argument("--frames", type=int, nargs="+", default=[3, 12, 20])
@@ -61,7 +61,7 @@ def main():
     ap.add_argument("--cam", type=float, default=0.1, help="camera shift in units of scene scale")
     ap.add_argument("--lbfgs-iters", type=int, default=60)
     ap.add_argument("--g-iters", type=int, default=300)
-    ap.add_argument("--out", default="out/b1persist")
+    ap.add_argument("--out", default="out/stage3_latent/b1persist")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

@@ -7,8 +7,8 @@ share) plotted vs the schedule position t (so K16/64/128 overlay despite differe
 side-by-side heatmap of the global attention onto the token's OWN frame at the endpoint t=1.
 
   PYTHONPATH=$(pwd) python shovel/attn_compare_K.py \
-      --dirs out/track_s10_K16 out/track_s10_K64 out/track_s10_K128 \
-      --tokens near_tex,flat,far --out out/attn_compare_s10
+      --dirs out/stage1_2_collapse/track_s10_K16 out/stage1_2_collapse/track_s10_K64 out/stage1_2_collapse/track_s10_K128 \
+      --tokens near_tex,flat,far --out out/stage1_2_collapse/attn_compare_s10
 """
 import argparse, glob, os, re as _re
 def _nsort(ps):
@@ -65,7 +65,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dirs", nargs="+", required=True, help="track_<tag>_K<K> dumps (any order)")
     ap.add_argument("--tokens", default="near_tex,flat,far")
-    ap.add_argument("--out", default="out/attn_compare")
+    ap.add_argument("--out", default="out/stage1_2_collapse/attn_compare")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 

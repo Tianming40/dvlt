@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dec_diag.py -- isolate the role of attention INSIDE the decoder for token writes (follow-up of token_rw.py E2/E3).
 
-Two decoders on the same stored tokens (out/tokendump):
+Two decoders on the same stored tokens (out/stage3_latent/tokendump):
   normal : DVLT's decoder as is (2 frame-attention Blocks with RoPE in each of ray/depth decoder, then head)
   diag   : the same, but every decoder Block's attention is replaced by "attend only to yourself"
            (softmax = identity -> out_i = proj(v_i)); MLP, LayerNorm, heads unchanged.
@@ -14,7 +14,7 @@ For each decoder and quantity (logdepth, origin_x):
              Cov(z,y)Var(y)^-1 (scaled so the probe predicts alpha) -> decoded change of patch i / alpha
   cov write on patch / 6x6 region / whole frame (as token_rw E2) -> gain
 
-  PYTHONPATH=$(pwd) python shovel/dec_diag.py --steps K16:8 K16:16 --frames 3 12 20 --n-jac 24 --out out/decdiag
+  PYTHONPATH=$(pwd) python shovel/dec_diag.py --steps K16:8 K16:16 --frames 3 12 20 --n-jac 24 --out out/stage3_latent/decdiag
 """
 import argparse
 import json
@@ -56,12 +56,12 @@ def qty(out, name):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--steps", nargs="+", default=["K16:8", "K16:16"])
     ap.add_argument("--frames", type=int, nargs="+", default=[3, 12, 20])
     ap.add_argument("--n-jac", type=int, default=24)
     ap.add_argument("--alpha", type=float, default=0.1)
-    ap.add_argument("--out", default="out/decdiag")
+    ap.add_argument("--out", default="out/stage3_latent/decdiag")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     P = Probe("nvidia/dvlt", max_frames=27)

@@ -2,7 +2,7 @@
 """Plot the residual-injection diagnostic: L descent trajectory (L_hist) per eta, and the final GT AbsRel
 (grad vs the no-inject baseline), for the photo (self-supervised) and gtdepth (oracle) residuals.
 
-  PYTHONPATH=$(pwd) python shovel/plot_photodiag.py --base out/experiment1/photodiag
+  PYTHONPATH=$(pwd) python shovel/plot_photodiag.py --base out/stage1_2_collapse/experiment1/photodiag
 """
 import argparse, glob, json, os
 import numpy as np
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="out/experiment1/photodiag")
+    ap.add_argument("--base", default="out/stage1_2_collapse/experiment1/photodiag")
     a = ap.parse_args()
 
     # find per-eta dirs (eta<val>/), fall back to the base dir itself (single eta)

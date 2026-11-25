@@ -13,7 +13,7 @@ For each state x and frame pair (A,B):
 Metrics for frame A vs the base decode at the same time point (shovel/camswap.metrics): does A's camera centre / rays /
 points move toward B's? (centre_toB, dir_toB_deg vs dir_AB_deg, pts_moved, ...).
 
-  PYTHONPATH=$(pwd) python shovel/attn_undo_swap.py --max-frames 27 --K 16 --pairs 5:5 4:5 12:13 3:20 8:24 --out out/attnundo
+  PYTHONPATH=$(pwd) python shovel/attn_undo_swap.py --max-frames 27 --K 16 --pairs 5:5 4:5 12:13 3:20 8:24 --out out/stage3_latent/attnundo
 """
 import argparse
 import json
@@ -47,11 +47,11 @@ def make_branch(P, rope, dims, K):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=16)
     ap.add_argument("--pairs", nargs="+", default=["5:5", "4:5", "12:13", "3:20", "8:24"])
-    ap.add_argument("--out", default="out/attnundo")
+    ap.add_argument("--out", default="out/stage3_latent/attnundo")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     pairs = [tuple(int(v) for v in p.split(":")) for p in a.pairs]

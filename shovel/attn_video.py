@@ -7,7 +7,7 @@ frame, play the K loop steps left-to-right. Two modes:
 Reads  <dir>/<patch>/step_<kk>/frame_<jj>/head_<hh>.png  and writes an mp4 (via the ffmpeg binary;
 falls back to an animated GIF). A step label is burned into each video frame.
 
-  PYTHONPATH=$(pwd) python shovel/attn_video.py --dir out/attn_viz_s10_K16 \
+  PYTHONPATH=$(pwd) python shovel/attn_video.py --dir out/stage1_2_collapse/attn_viz_s10_K16 \
       --patch near_tex --frame 0 --head grid --fps 3
 """
 import argparse, glob, os, subprocess, shutil, tempfile

@@ -2,7 +2,7 @@
 """token_dump.py -- store the FULL DVLT state at every loop step (original model, DVLT time schedule), for later
 read/write (probe, decoder-Jacobian, steering) analyses.
 
-For each K in --Ks: out/tokendump/K{K}/
+For each K in --Ks: out/stage3_latent/tokendump/K{K}/
   step_{s:03d}.npy      state after s loop steps (s = 0 is the encoder state x0), (S, P, C) float16, P = 5 + gh*gw
   targets_{s:03d}.npz   DVLT's own decode of that state, per patch (mean over the 14x14 pixels):
                         logdepth (S,Np) | dir (S,Np,3) unit ray direction | origin (S,Np,3) | point (S,Np,3) | pose_enc (S,9)
@@ -10,7 +10,7 @@ For each K in --Ks: out/tokendump/K{K}/
                         GT c2w (S,4,4), GT intrinsics (3,3) at model resolution
 Size: ~36 MB per state for 27 frames.
 
-  PYTHONPATH=$(pwd) python shovel/token_dump.py --Ks 16 64 --out out/tokendump
+  PYTHONPATH=$(pwd) python shovel/token_dump.py --Ks 16 64 --out out/stage3_latent/tokendump
 """
 import argparse
 import os
@@ -25,11 +25,11 @@ from dvlt_probe import Probe, load_gt  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--Ks", type=int, nargs="+", default=[16, 64])
-    ap.add_argument("--out", default="out/tokendump")
+    ap.add_argument("--out", default="out/stage3_latent/tokendump")
     a = ap.parse_args()
 
     P = Probe("nvidia/dvlt", max_frames=a.max_frames)

@@ -9,7 +9,7 @@ Base: frozen DVLT with fixed gates B + RMS state norm (gate_fix), K steps (defau
       z <- RMS( (1 - alpha) * F(z) + alpha * x0_hat ),   x0_hat = x0 rescaled to the same RMS
 Runs: base, freeze, soft b1, soft b4, restart a.02, restart a.05, freeze + a.02, soft b1 + a.02.
 
-  PYTHONPATH=$(pwd) python shovel/attn_state_anchor.py --out out/attnstate
+  PYTHONPATH=$(pwd) python shovel/attn_state_anchor.py --out out/stage3_latent/attnstate
 """
 import argparse
 import json
@@ -31,12 +31,12 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=128)
     ap.add_argument("--anchor", type=int, default=8)
-    ap.add_argument("--out", default="out/attnstate")
+    ap.add_argument("--out", default="out/stage3_latent/attnstate")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

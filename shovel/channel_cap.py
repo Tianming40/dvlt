@@ -9,9 +9,9 @@ Runs:
       base | target cap {480, 614, 701} | random cap (3 random ordinary channels, control) | all-channel cap (768)
   BR K128 (fixed gates B + RMS; there ch215 decays and ch25 takes over): base | all-channel cap
 Per step: AbsRel, ATE (Sim3), and the RMS of channels 215, 480, 614, 701, 25.
-Data: out/channelcap/channelcap.json, summary.txt, channelcap.png
+Data: out/stage3_latent/channelcap/channelcap.json, summary.txt, channelcap.png
 
-  PYTHONPATH=$(pwd) python shovel/channel_cap.py --out out/channelcap
+  PYTHONPATH=$(pwd) python shovel/channel_cap.py --out out/stage3_latent/channelcap
 """
 import argparse
 import json
@@ -32,11 +32,11 @@ WATCH = [215, 480, 614, 701, 25]
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--ref", type=int, default=8)
     ap.add_argument("--target", type=int, nargs="+", default=[480, 614, 701])
-    ap.add_argument("--out", default="out/channelcap")
+    ap.add_argument("--out", default="out/stage3_latent/channelcap")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

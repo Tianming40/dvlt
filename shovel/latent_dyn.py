@@ -2,7 +2,7 @@
 """latent_dyn.py -- A-series diagnostics of DVLT's 768-d token space and loop dynamics (frozen model, stored tokens).
 
 All loop/decoder evaluations in fp32 (no autocast): finite differences are linear to ~3e-4 in fp32 (bf16: 0.34).
-Stored states: out/tokendump/K{16,64}/step_XXX.npy (state after s steps), meta.npz (rope, ...).
+Stored states: out/stage3_latent/tokendump/K{16,64}/step_XXX.npy (state after s steps), meta.npz (rope, ...).
 
 A1 OBSERVABLE vs UNOBSERVABLE split of the loop update dz_k = z_{k+1} - z_k   (per frame f in --frames)
    decoder map D_f: tokens of frame f (869x768) -> per-patch [logdepth, dir(3), origin(3)] standardized by global stds.
@@ -21,7 +21,7 @@ A4 LIE GENERATORS: one rank-r matrix G (768x768, shared by ALL tokens of ALL fra
    (origin rotated about x, rays about y: not a rigid motion) and "noise" (i.i.d. per-patch targets).
    Commutator check: [G_rx, G_ry] z should decode like a rotation about z by eps^2.
 
-  PYTHONPATH=$(pwd) python shovel/latent_dyn.py --parts a1 a2 a3 a4 --out out/latentdyn
+  PYTHONPATH=$(pwd) python shovel/latent_dyn.py --parts a1 a2 a3 a4 --out out/stage3_latent/latentdyn
 """
 import argparse
 import json
@@ -389,7 +389,7 @@ def plots(R, out):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--parts", nargs="+", default=["a1", "a2", "a3", "a4"])
     ap.add_argument("--frames", type=int, nargs="+", default=[3, 12, 20])
     ap.add_argument("--rank", type=int, default=256, help="A1 sketch size")
@@ -402,7 +402,7 @@ def main():
     ap.add_argument("--g-rank", type=int, default=32)
     ap.add_argument("--g-iters", type=int, default=400)
     ap.add_argument("--lr", type=float, default=3e-3)
-    ap.add_argument("--out", default="out/latentdyn")
+    ap.add_argument("--out", default="out/stage3_latent/latentdyn")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     P = Probe("nvidia/dvlt", max_frames=27)

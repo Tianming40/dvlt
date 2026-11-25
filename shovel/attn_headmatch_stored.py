@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """attn_headmatch_stored.py -- OFFLINE (no model, no GPU): which head / head-mean, at which step of which K,
-best represents TRUE patch matching? Reads the Stage-2 stored attention in out/track_s10_K{K}/ (track_token.py):
+best represents TRUE patch matching? Reads the Stage-2 stored attention in out/stage1_2_collapse/track_s10_K{K}/ (track_token.py):
   global_rows (T=8, Hh=12, S=27, P=869) per step  -- full global-attention rows of 8 frame-0 tokens
   meta.npz: tok_index (3 patches = near_tex, flat, far at tracked slots 5,6,7)
 
@@ -18,8 +18,8 @@ frame j, WHERE does it look"), then compared with the GT target patch g:
 Head combos: each single head h0..h11, mean of all 12, {0,9}, {0,4,9}, and (IN-SAMPLE, overfit-prone) the best
 head pair by pck1. Combining = averaging the heads' probability rows.
 
-  PYTHONPATH=$(pwd) python shovel/attn_headmatch_stored.py --gt out/gt_00777c41d4_s10/gt.npz \
-      --Ks 8 16 32 64 128 --out out/attnmatch_stored
+  PYTHONPATH=$(pwd) python shovel/attn_headmatch_stored.py --gt out/data/gt_00777c41d4_s10/gt.npz \
+      --Ks 8 16 32 64 128 --out out/stage1_2_collapse/attnmatch_stored
 """
 import argparse
 import csv
@@ -96,12 +96,12 @@ def combos_fixed(Hh):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--track-root", default="out")
     ap.add_argument("--tag", default="s10")
     ap.add_argument("--Ks", type=int, nargs="+", default=[8, 16, 32, 64, 128])
     ap.add_argument("--occ", type=float, default=0.1)
-    ap.add_argument("--out", default="out/attnmatch_stored")
+    ap.add_argument("--out", default="out/stage1_2_collapse/attnmatch_stored")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 

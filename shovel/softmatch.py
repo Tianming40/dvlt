@@ -12,9 +12,9 @@ Heads: each of --heads, and the mean of their logits.
 GT: patch centre of A + GT depth/pose/K -> continuous pixel in B (occlusion-checked); frame gaps --gaps.
 Metrics: median pixel error, share < 3 / 7 / 14 px; confidence (peak prob, window spatial std) vs error: Spearman rho and
 median error of the 50% most confident matches.
-Data: out/softmatch/softmatch.json, summary.txt, softmatch.png
+Data: out/stage3_latent/softmatch/softmatch.json, summary.txt, softmatch.png
 
-  PYTHONPATH=$(pwd) python shovel/softmatch.py --out out/softmatch
+  PYTHONPATH=$(pwd) python shovel/softmatch.py --out out/stage3_latent/softmatch
 """
 import argparse
 import json
@@ -39,14 +39,14 @@ def spearman(a, b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump/K16")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump/K16")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--steps", type=int, nargs="+", default=[3, 4, 6])
     ap.add_argument("--heads", type=int, nargs="+", default=[0, 9])
     ap.add_argument("--gaps", type=int, nargs="+", default=[1, 2, 4])
     ap.add_argument("--temps", type=float, nargs="+", default=[1.0, 0.5, 0.25])
     ap.add_argument("--occ", type=float, default=0.05)
-    ap.add_argument("--out", default="out/softmatch")
+    ap.add_argument("--out", default="out/stage3_latent/softmatch")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

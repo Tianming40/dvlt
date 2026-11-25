@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""token_curve_viz.py -- plot ONE token's 768 values at every loop step (K16 and K64), from out/tokendump.
+"""token_curve_viz.py -- plot ONE token's 768 values at every loop step (K16 and K64), from out/stage3_latent/tokendump.
 
-Figures (out/tokencurve/):
+Figures (out/stage3_latent/tokencurve/):
   overlay_K{K}.png   all steps overlaid (x = channel 0..767, y = value), colour = step
   steps_K{K}.png     small multiples for selected steps
   heatmap.png        step x channel heatmaps for K16 and K64 (shared colour scale)
@@ -20,12 +20,12 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--frame", type=int, default=3)
     ap.add_argument("--row", type=int, default=12)
     ap.add_argument("--col", type=int, default=18)
     ap.add_argument("--token", type=int, default=None, help="raw token index in the frame (0 = cam, 1-4 = reg); overrides row/col")
-    ap.add_argument("--out", default="out/tokencurve")
+    ap.add_argument("--out", default="out/stage3_latent/tokencurve")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt

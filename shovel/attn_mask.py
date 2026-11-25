@@ -19,8 +19,8 @@ patch always sees its OWN frame.
 Visibility/correspondence = dvlt_probe.gt_correspondence (same as cmd_attn). Metrics = dvlt_probe
 _dyn_row (|x|, k_eff) + gt_metrics (AbsRel, d1, ATE). Mask applied at EVERY step of the loop.
 
-  python shovel/attn_mask.py --exp all --input out/gt_00777c41d4_s10/probe_input \
-      --gt out/gt_00777c41d4_s10/gt.npz --max-frames 27 --Ks 8 16 32 64 128 --out out/attentionmask
+  python shovel/attn_mask.py --exp all --input out/data/gt_00777c41d4_s10/probe_input \
+      --gt out/data/gt_00777c41d4_s10/gt.npz --max-frames 27 --Ks 8 16 32 64 128 --out out/stage1_2_collapse/attentionmask
 
 Does NOT modify src/dvlt or dvlt_probe.py (the global attention forward is swapped on the instance
 and restored).
@@ -365,7 +365,7 @@ def main():
     ap.add_argument("--norm", action="store_true",
                     help="after every step, rescale the whole state to a fixed RMS (Solv3R SolverBlock normalization)")
     ap.add_argument("--rms-target", type=float, default=0.852, help="target state RMS for --norm (Solv3R: 0.852)")
-    ap.add_argument("--out", default="out/attentionmask")
+    ap.add_argument("--out", default="out/stage1_2_collapse/attentionmask")
     a = ap.parse_args()
     assert a.modes[0] == "base", "first mode must be 'base' (reference)"
     os.makedirs(a.out, exist_ok=True)

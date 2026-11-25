@@ -10,7 +10,7 @@ Optional soft anchoring (--beta, not run by default): softmax(Q K^T + beta * Q_k
 log-prior beta*log A_k (row constants cancel), computed exactly by concatenating [Q, sqrt(beta) Q_k] and [K, sqrt(beta) K_k]
 along the head dimension.
 
-  PYTHONPATH=$(pwd) python shovel/attn_freeze.py --freeze-at 4 8 16 --out out/attnfreeze
+  PYTHONPATH=$(pwd) python shovel/attn_freeze.py --freeze-at 4 8 16 --out out/stage3_latent/attnfreeze
 """
 import argparse
 import json
@@ -68,13 +68,13 @@ class GlobalAttnControl:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=64)
     ap.add_argument("--freeze-at", type=int, nargs="+", default=[4, 8, 16])
     ap.add_argument("--beta", type=float, nargs="*", default=[], help="soft anchoring strengths (anchor at the first --freeze-at)")
-    ap.add_argument("--out", default="out/attnfreeze")
+    ap.add_argument("--out", default="out/stage3_latent/attnfreeze")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

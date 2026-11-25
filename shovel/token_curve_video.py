@@ -6,7 +6,7 @@ Frame layout:
            channel is clipped and its value printed; the 3 largest-|value| other channels are labelled.
   bottom : scene depth AbsRel (per-patch decoded log-depth vs GT, median scale) and this token's norm vs step,
            current step marked.
-Output: out/tokencurve/frames_K{K}/step_XXX.png and out/tokencurve/token_K{K}.mp4
+Output: out/stage3_latent/tokencurve/frames_K{K}/step_XXX.png and out/stage3_latent/tokencurve/token_K{K}.mp4
 
   PYTHONPATH=$(pwd) python shovel/token_curve_video.py --frame 3 --row 12 --col 18
 """
@@ -22,13 +22,13 @@ PM = 5
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--frame", type=int, default=3)
     ap.add_argument("--row", type=int, default=12)
     ap.add_argument("--col", type=int, default=18)
     ap.add_argument("--token", type=int, default=None, help="raw token index (0 = cam, 1-4 = reg); overrides row/col")
     ap.add_argument("--fps", type=float, nargs=2, default=[2, 4], help="fps for K16, K64")
-    ap.add_argument("--out", default="out/tokencurve")
+    ap.add_argument("--out", default="out/stage3_latent/tokencurve")
     a = ap.parse_args()
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     meta = np.load(f"{a.dump}/K16/meta.npz")

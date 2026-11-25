@@ -6,7 +6,7 @@ Per-frame AbsRel uses a per-frame median scale (single-frame depth has a free sc
 comparison is fair; the multi-view run additionally reports the usual sequence-level AbsRel (one shared scale).
 Reported at steps 0 (decode of the encoder state), 1, 2, 4, 8, 16.
 
-  PYTHONPATH=$(pwd) python shovel/single_frame.py --out out/singleframe
+  PYTHONPATH=$(pwd) python shovel/single_frame.py --out out/stage3_latent/singleframe
 """
 import argparse
 import json
@@ -24,11 +24,11 @@ STEPS = [0, 1, 2, 4, 8, 16]
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=16)
-    ap.add_argument("--out", default="out/singleframe")
+    ap.add_argument("--out", default="out/stage3_latent/singleframe")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

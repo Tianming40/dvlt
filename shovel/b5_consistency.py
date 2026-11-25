@@ -18,7 +18,7 @@ Gradient flows into frame A only (B's maps, camera fit and the images / x0 are h
 an A for its own pairs, so every frame is guided. GT is used ONLY for evaluation and for a diagnostic: at a few steps the
 cosine between the consistency gradient and the B4 ORACLE gradient (depth + 0.1*(centre+dir)) is reported.
 
-  PYTHONPATH=$(pwd) python shovel/b5_consistency.py --out out/b5consistency
+  PYTHONPATH=$(pwd) python shovel/b5_consistency.py --out out/stage3_latent/b5consistency
 """
 import argparse
 import json
@@ -54,8 +54,8 @@ def huber(r, d):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=32)
     ap.add_argument("--i-start", type=int, default=3)
@@ -66,7 +66,7 @@ def main():
     ap.add_argument("--chunk", type=int, default=3)
     ap.add_argument("--diag-steps", type=int, nargs="+", default=[4, 8, 16, 32])
     ap.add_argument("--only", nargs="*", default=None)
-    ap.add_argument("--out", default="out/b5consistency")
+    ap.add_argument("--out", default="out/stage3_latent/b5consistency")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = False

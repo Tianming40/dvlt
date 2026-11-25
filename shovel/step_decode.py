@@ -7,7 +7,7 @@ Pure repo compute: the step is DVLTModel._interval_step, the decode is DVLTModel
 directly (no Probe wrapper). This script only orchestrates "step -> decode -> save".
 
 Output layout (everything clearly separable):
-  out/stepdecode_<tag>_K<K>/
+  out/stage1_2_collapse/stepdecode_<tag>_K<K>/
     meta.npz                 # K, S, H, W, input, ckpt, t-schedule, gt intrinsics/names/c2w
     step_00.npz              # one step: depth (S,H,W,1), rays (S,H,W,6), pose_enc (S,9), depth_conf (S,H,W)
     step_01.npz              #   -> index a frame inside with [frame_i]
@@ -15,7 +15,7 @@ Output layout (everything clearly separable):
     step_<K-1>.npz
 
   PYTHONPATH=$(pwd) python shovel/step_decode.py \
-      --input out/gt_00777c41d4_s10/probe_input --gt out/gt_00777c41d4_s10/gt.npz \
+      --input out/data/gt_00777c41d4_s10/probe_input --gt out/data/gt_00777c41d4_s10/gt.npz \
       --max-frames 27 --K 16 --tag s10
 """
 import argparse

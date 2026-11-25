@@ -14,8 +14,8 @@ Patches are forced to be spatially distinct (>= --min-sep cells apart).
 Token index of a picked (row,col) in frame 0:  idx = patch_start_idx(5) + row*GW + col
 
   PYTHONPATH=$(pwd) python shovel/pick_patches.py \
-      --input out/gt_00777c41d4_s10/probe_input --gt out/gt_00777c41d4_s10/gt.npz \
-      --out out/gt_00777c41d4_s10/patch_pick_frame0.png
+      --input out/data/gt_00777c41d4_s10/probe_input --gt out/data/gt_00777c41d4_s10/gt.npz \
+      --out out/data/gt_00777c41d4_s10/patch_pick_frame0.png
 """
 import argparse, json, os
 import numpy as np

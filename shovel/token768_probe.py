@@ -15,8 +15,8 @@
 Targets are DVLT's OWN decoded quantities at the same step (what the token must encode for the heads); GT only for
 depth (extra) and correspondences (evaluation).
 
-  PYTHONPATH=$(pwd) python shovel/token768_probe.py --dump    --out out/token768
-  PYTHONPATH=$(pwd) python shovel/token768_probe.py --analyze --out out/token768
+  PYTHONPATH=$(pwd) python shovel/token768_probe.py --dump    --out out/stage3_latent/token768
+  PYTHONPATH=$(pwd) python shovel/token768_probe.py --analyze --out out/stage3_latent/token768
 """
 import argparse
 import os
@@ -249,12 +249,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dump", action="store_true")
     ap.add_argument("--analyze", action="store_true")
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--K", type=int, default=16)
     ap.add_argument("--steps", type=int, nargs="+", default=[0, 1, 2, 4, 8, 16])
-    ap.add_argument("--out", default="out/token768")
+    ap.add_argument("--out", default="out/stage3_latent/token768")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     if a.dump:

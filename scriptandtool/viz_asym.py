@@ -20,7 +20,7 @@ from dvlt_probe import Probe, _patch_global_idx
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4/probe_input")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4/probe_input")
     ap.add_argument("--ckpt", default="nvidia/dvlt")
     ap.add_argument("--frames", type=int, default=20)
     ap.add_argument("--step", type=int, default=8, help="loop step to visualize")

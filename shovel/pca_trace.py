@@ -5,7 +5,7 @@ Measures how low-dimensional the 768-dim journey is (variance per PC + effective
 plots the trajectory in its own top-2 PC plane. With several tokens it fits ONE joint PCA so their
 paths are comparable in a common frame.
 
-  PYTHONPATH=$(pwd) python shovel/pca_trace.py --dir out/track_s10_K16 --tokens near_tex
+  PYTHONPATH=$(pwd) python shovel/pca_trace.py --dir out/stage1_2_collapse/track_s10_K16 --tokens near_tex
   #   all 8 tokens, joint PCA:   --tokens all
   #   include the per-sub-block checkpoints (z_frame too): --points all
 """

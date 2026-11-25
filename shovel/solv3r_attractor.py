@@ -398,12 +398,12 @@ def run_exp2(a):
 # ----------------------------------------------------------------------------- main experiment
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--calls", type=int, default=32, help="total Solv3R solver calls")
     ap.add_argument("--checkpoints", type=int, nargs="+", default=[0, 1, 2, 4, 8, 16, 32])
-    ap.add_argument("--out", default="out/solv3rexperiment")
+    ap.add_argument("--out", default="out/solv3r/solv3rexperiment")
     ap.add_argument("--tag", default="s10_27f")
     ap.add_argument("--states", nargs="+", default=["normal", "dvlt16", "collapsed", "random", "scrambled"])
     ap.add_argument("--exp", choices=["1", "2", "jac", "drift"], default="1",

@@ -7,7 +7,7 @@ scores -> the camera centres DVLT itself decodes at that step (mean ray origin).
 Row per K: (1) R^2 vs step for top-3 / top-6  (2) decoded camera centres, 2-D view  (3) cam tokens' PC1-PC2
 (4) top-6 linear fit: predicted vs decoded centre coordinates.  Colour = frame index (same in panels 2-4).
 
-  python shovel/camtoken_pca_viz.py --Ks 16 64 128 --step-plot last --out out/camtoken
+  python shovel/camtoken_pca_viz.py --Ks 16 64 128 --step-plot last --out out/stage3_latent/camtoken
 """
 import argparse
 import glob
@@ -42,10 +42,10 @@ def centres(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--Ks", type=int, nargs="+", default=[16, 64, 128])
-    ap.add_argument("--camtok", default="out/camtoken/camtoken_allframes_allK.npz")
-    ap.add_argument("--stepdecode", default="out/stepdecode_s10_K{K}")
+    ap.add_argument("--camtok", default="out/stage3_latent/camtoken/camtoken_allframes_allK.npz")
+    ap.add_argument("--stepdecode", default="out/stage1_2_collapse/stepdecode_s10_K{K}")
     ap.add_argument("--step-plot", default="last", help="'last' or an integer step for panels 2-4")
-    ap.add_argument("--out", default="out/camtoken")
+    ap.add_argument("--out", default="out/stage3_latent/camtoken")
     a = ap.parse_args()
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 

@@ -20,7 +20,7 @@ Logged every `every` steps: AbsRel, d1, ATE (GT), |x|, k_eff, mean |r| over edge
 (mean-removed; rising = global flattening).
 
   PYTHONPATH=$(pwd) python shovel/corr_residual.py --max-frames 27 --etas 0 0.01 0.03 0.1 0.3 \
-      --gates sched A Bnorm --sched-Ks 16 64 --K-fixed 64 --out out/corrres
+      --gates sched A Bnorm --sched-Ks 16 64 --K-fixed 64 --out out/stage3_latent/corrres
 """
 import argparse
 import json
@@ -170,8 +170,8 @@ def run_condition(P, images, a, gate, K, eta, sub, rng_pairs):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="out/gt_00777c41d4_s10/probe_input")
-    ap.add_argument("--gt", default="out/gt_00777c41d4_s10/gt.npz")
+    ap.add_argument("--input", default="out/data/gt_00777c41d4_s10/probe_input")
+    ap.add_argument("--gt", default="out/data/gt_00777c41d4_s10/gt.npz")
     ap.add_argument("--max-frames", type=int, default=27)
     ap.add_argument("--etas", type=float, nargs="+", default=[0, 0.01, 0.03, 0.1, 0.3])
     ap.add_argument("--gates", nargs="+", default=["sched", "A", "Bnorm"])
@@ -183,7 +183,7 @@ def main():
     ap.add_argument("--cos-min", type=float, default=0.2, help="cosine threshold after frame-mean removal")
     ap.add_argument("--every", type=int, default=4)
     ap.add_argument("--chunk", type=int, default=512)
-    ap.add_argument("--out", default="out/corrres")
+    ap.add_argument("--out", default="out/stage3_latent/corrres")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 

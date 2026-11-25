@@ -18,10 +18,10 @@ Only thin glue is ours: reading the npz, assembling the GT batch, apply_fixed (=
 alignment application with a frozen transform), and the per-step Rerun logging (visualize_scene
 has no step timeline).
 
-  PYTHONPATH=$(pwd) python shovel/predict_viz.py --dir out/stepdecode_s10_K16 \
-      --input out/gt_00777c41d4_s10/probe_input --gt out/gt_00777c41d4_s10/gt.npz \
+  PYTHONPATH=$(pwd) python shovel/predict_viz.py --dir out/stage1_2_collapse/stepdecode_s10_K16 \
+      --input out/data/gt_00777c41d4_s10/probe_input --gt out/data/gt_00777c41d4_s10/gt.npz \
       --max-frames 27 --conf 25 --align-mode per-step \
-      --out out/stepdecode_s10_K16/predict_viz.rrd
+      --out out/stage1_2_collapse/stepdecode_s10_K16/predict_viz.rrd
 """
 import argparse, glob, os
 import numpy as np, torch

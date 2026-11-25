@@ -5,7 +5,7 @@ Reads out/probe20_* produced by run_probe20.sh and draws a single dashboard:
   [traj: AbsRel vs GT per step]  [ksweep: final AbsRel vs GT per K]
   [perturb: GT AbsRel clean vs perturbed]  [photo: photometric residual along loop]
 
-  python make_dashboard.py --out-root out --fig out/dashboard20.png
+  python make_dashboard.py --out-root out --fig out/stage1_2_collapse/dashboard20.png
 """
 import argparse
 import json
@@ -106,7 +106,7 @@ def panel_photo(ax, root):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-root", default="out")
-    ap.add_argument("--fig", default="out/dashboard20.png")
+    ap.add_argument("--fig", default="out/stage1_2_collapse/dashboard20.png")
     a = ap.parse_args()
     os.makedirs(os.path.dirname(a.fig) or ".", exist_ok=True)
 

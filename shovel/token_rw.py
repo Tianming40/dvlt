@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""token_rw.py -- READ / WRITE experiments on stored DVLT tokens (out/tokendump), decode immediately, no further loop.
+"""token_rw.py -- READ / WRITE experiments on stored DVLT tokens (out/stage3_latent/tokendump), decode immediately, no further loop.
 
 Probes are ridge regressions  token(768) -> DVLT's OWN decoded per-patch quantity (= a linear emulator of the decoder):
   logdepth (1), dir (3, unit ray direction), origin (3, ray origin = camera centre), point (3), rgb (3, from the image).
@@ -18,8 +18,8 @@ Per step s:
                all-frame mean -> decoded depth std / camera centres.
   E7 CHANNEL   massive channel (largest energy, e.g. 215): zero it / set to its mean -> decoded changes.
 
-  PYTHONPATH=$(pwd) python shovel/token_rw.py --dump out/tokendump --steps K16:4 K16:8 K16:16 K64:64 --frames 3 12 20 \
-      --pairs 4:5 12:13 3:20 --out out/tokenrw
+  PYTHONPATH=$(pwd) python shovel/token_rw.py --dump out/stage3_latent/tokendump --steps K16:4 K16:8 K16:16 K64:64 --frames 3 12 20 \
+      --pairs 4:5 12:13 3:20 --out out/stage3_latent/tokenrw
 """
 import argparse
 import json
@@ -102,13 +102,13 @@ def ang_deg(u, v):
 # ----------------------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dump", default="out/tokendump")
+    ap.add_argument("--dump", default="out/stage3_latent/tokendump")
     ap.add_argument("--steps", nargs="+", default=["K16:4", "K16:8", "K16:16", "K64:64"])
     ap.add_argument("--frames", type=int, nargs="+", default=[3, 12, 20])
     ap.add_argument("--pairs", nargs="+", default=["4:5", "12:13", "3:20"])
     ap.add_argument("--alphas", type=float, nargs="+", default=[0.1, 0.3])
     ap.add_argument("--n-jac", type=int, default=24, help="patches per frame for the autograd Jacobian")
-    ap.add_argument("--out", default="out/tokenrw")
+    ap.add_argument("--out", default="out/stage3_latent/tokenrw")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     pairs = [tuple(int(v) for v in p.split(":")) for p in a.pairs]

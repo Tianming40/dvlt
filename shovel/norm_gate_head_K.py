@@ -8,8 +8,8 @@
                   not per-head: gates act after W_O which mixes heads, so channels != heads.]
 
   PYTHONPATH=$(pwd) python shovel/norm_gate_head_K.py \
-      --dirs out/track_s10_K8 out/track_s10_K16 out/track_s10_K32 out/track_s10_K64 out/track_s10_K128 \
-      --out out/track_s10_gatehead
+      --dirs out/stage1_2_collapse/track_s10_K8 out/stage1_2_collapse/track_s10_K16 out/stage1_2_collapse/track_s10_K32 out/stage1_2_collapse/track_s10_K64 out/stage1_2_collapse/track_s10_K128 \
+      --out out/stage1_2_collapse/track_s10_gatehead
 """
 import argparse, glob, os, re as _re
 def _nsort(ps):
@@ -47,7 +47,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dirs", nargs="+", required=True)
     ap.add_argument("--tokens", default="cam,near_tex,flat,far")
-    ap.add_argument("--out", default="out/track_gatehead")
+    ap.add_argument("--out", default="out/stage1_2_collapse/track_gatehead")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 
